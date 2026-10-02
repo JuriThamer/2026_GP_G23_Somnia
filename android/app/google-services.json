@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1043583016592",
+    "project_id": "somnia-97440",
+    "storage_bucket": "somnia-97440.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1043583016592:android:d5ae5a41edeb2940fd8215",
+        "android_client_info": {
+          "package_name": "com.example.somnia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsc0kVKGi1sCZuX3H8lriwN-f-MFomoqY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
