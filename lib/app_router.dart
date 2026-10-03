@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'widgets/app_button.dart';
+import 'features/auth/welcome_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
@@ -43,7 +44,7 @@ class AppRouter {
   static Map<String, WidgetBuilder> get routes {
     return {
       AppRoutes.dev: (_) => const DevMenuScreen(),
-      AppRoutes.welcome: (_) => const PlaceholderScreen('Welcome'),
+      AppRoutes.welcome: (_) => const WelcomeScreen(),
       AppRoutes.signIn: (_) => const PlaceholderScreen('Sign in'),
       AppRoutes.signUp: (_) => const PlaceholderScreen('Sign up'),
       AppRoutes.forgotPassword: (_) =>
