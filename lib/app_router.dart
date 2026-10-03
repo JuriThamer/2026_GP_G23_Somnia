@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'widgets/app_button.dart';
+import 'features/auth/welcome_screen.dart';
+import 'features/auth/sign_up_screen.dart';
+import 'features/auth/sign_in_screen.dart';
+import 'features/auth/forgot_password_screen.dart';
+import 'features/session/home_screen.dart';
+import 'features/session/watch_screen.dart';
+import 'features/session/active_session_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
@@ -43,14 +50,13 @@ class AppRouter {
   static Map<String, WidgetBuilder> get routes {
     return {
       AppRoutes.dev: (_) => const DevMenuScreen(),
-      AppRoutes.welcome: (_) => const PlaceholderScreen('Welcome'),
-      AppRoutes.signIn: (_) => const PlaceholderScreen('Sign in'),
-      AppRoutes.signUp: (_) => const PlaceholderScreen('Sign up'),
-      AppRoutes.forgotPassword: (_) =>
-          const PlaceholderScreen('Forgot password'),
-      AppRoutes.home: (_) => const PlaceholderScreen('Home'),
-      AppRoutes.watch: (_) => const PlaceholderScreen('Watch'),
-      AppRoutes.activeSession: (_) => const PlaceholderScreen('Active session'),
+      AppRoutes.welcome: (_) => const WelcomeScreen(),
+      AppRoutes.signIn: (_) => const SignInScreen(),
+      AppRoutes.signUp: (_) => const SignUpScreen(),
+      AppRoutes.forgotPassword: (_) => const ForgotPasswordScreen(),
+      AppRoutes.home: (_) => const HomeScreen(),
+      AppRoutes.watch: (_) => const WatchScreen(),
+      AppRoutes.activeSession: (_) => const ActiveSessionScreen(),
       AppRoutes.dashboard: (_) => const PlaceholderScreen('Dashboard'),
       AppRoutes.history: (_) => const PlaceholderScreen('History'),
       AppRoutes.questionnaire: (_) => const PlaceholderScreen('Questionnaire'),
