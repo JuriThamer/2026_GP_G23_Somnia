@@ -4,6 +4,7 @@ import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'widgets/app_button.dart';
 import 'features/auth/welcome_screen.dart';
+  import 'features/auth/sign_up_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
@@ -46,9 +47,8 @@ class AppRouter {
       AppRoutes.dev: (_) => const DevMenuScreen(),
       AppRoutes.welcome: (_) => const WelcomeScreen(),
       AppRoutes.signIn: (_) => const PlaceholderScreen('Sign in'),
-      AppRoutes.signUp: (_) => const PlaceholderScreen('Sign up'),
-      AppRoutes.forgotPassword: (_) =>
-          const PlaceholderScreen('Forgot password'),
+      AppRoutes.signUp: (_) => const SignUpScreen(),
+      AppRoutes.forgotPassword: (_) => const PlaceholderScreen('Forgot password'),
       AppRoutes.home: (_) => const PlaceholderScreen('Home'),
       AppRoutes.watch: (_) => const PlaceholderScreen('Watch'),
       AppRoutes.activeSession: (_) => const PlaceholderScreen('Active session'),
