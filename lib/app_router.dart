@@ -8,6 +8,7 @@ import 'features/auth/sign_up_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/forgot_password_screen.dart';
 import 'features/session/home_screen.dart';
+import 'features/session/watch_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
@@ -52,8 +53,8 @@ class AppRouter {
       AppRoutes.signIn: (_) => const SignInScreen(),
       AppRoutes.signUp: (_) => const SignUpScreen(),
       AppRoutes.forgotPassword: (_) => const ForgotPasswordScreen(),
-        AppRoutes.home: (_) => const HomeScreen(),
-      AppRoutes.watch: (_) => const PlaceholderScreen('Watch'),
+      AppRoutes.home: (_) => const HomeScreen(),
+      AppRoutes.watch: (_) => const WatchScreen(),
       AppRoutes.activeSession: (_) => const PlaceholderScreen('Active session'),
       AppRoutes.dashboard: (_) => const PlaceholderScreen('Dashboard'),
       AppRoutes.history: (_) => const PlaceholderScreen('History'),
