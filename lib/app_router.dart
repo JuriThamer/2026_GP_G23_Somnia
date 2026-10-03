@@ -6,6 +6,8 @@ import 'widgets/app_button.dart';
 import 'features/auth/welcome_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/auth/forgot_password_screen.dart';
+
 class AppRoutes {
   static const dev = '/dev';
   static const welcome = '/welcome';
@@ -48,7 +50,7 @@ class AppRouter {
       AppRoutes.welcome: (_) => const WelcomeScreen(),
       AppRoutes.signIn: (_) => const SignInScreen(),
       AppRoutes.signUp: (_) => const SignUpScreen(),
-      AppRoutes.forgotPassword: (_) => const PlaceholderScreen('Forgot password'),
+      AppRoutes.forgotPassword: (_) => const ForgotPasswordScreen(),
       AppRoutes.home: (_) => const PlaceholderScreen('Home'),
       AppRoutes.watch: (_) => const PlaceholderScreen('Watch'),
       AppRoutes.activeSession: (_) => const PlaceholderScreen('Active session'),
