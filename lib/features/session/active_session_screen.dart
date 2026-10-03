@@ -57,10 +57,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         return;
       }
 
-      final DateTime? startTime = session.startTime;
       setState(() {
         _sessionId = session.sessionId;
-        _start = startTime ?? DateTime.now();
+        _start = session.startTime;
         _elapsed = DateTime.now().difference(_start!);
         _loading = false;
       });
