@@ -94,9 +94,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              Text(
-                'Settings',
-                style: text.headlineLarge,
+              Row(
+                children: [
+                  Material(
+                    color: colors.surfaceAlt,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => Navigator.pop(context),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Icon(
+                          Icons.chevron_left,
+                          color: colors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  Text(
+                    'Settings',
+                    style: text.headlineLarge,
+                  ),
+                ],
               ),
 
               const SizedBox(height: 8),
