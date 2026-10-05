@@ -10,6 +10,10 @@ import 'features/auth/forgot_password_screen.dart';
 import 'features/session/home_screen.dart';
 import 'features/session/watch_screen.dart';
 import 'features/session/active_session_screen.dart';
+import 'features/settings/settings_screen.dart';
+import 'features/settings/profile_screen.dart';
+import 'features/settings/edit_profile_screen.dart';
+import 'features/settings/sounds_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
@@ -60,10 +64,10 @@ class AppRouter {
       AppRoutes.dashboard: (_) => const PlaceholderScreen('Dashboard'),
       AppRoutes.history: (_) => const PlaceholderScreen('History'),
       AppRoutes.questionnaire: (_) => const PlaceholderScreen('Questionnaire'),
-      AppRoutes.profile: (_) => const PlaceholderScreen('Profile'),
-      AppRoutes.editProfile: (_) => const PlaceholderScreen('Edit profile'),
-      AppRoutes.settings: (_) => const PlaceholderScreen('Settings'),
-      AppRoutes.sounds: (_) => const PlaceholderScreen('Sounds'),
+      AppRoutes.profile: (_) => const ProfileScreen(),
+      AppRoutes.editProfile: (_) => const EditProfileScreen(),
+      AppRoutes.settings: (_) => const SettingsScreen(),
+      AppRoutes.sounds: (_) => const SoundsScreen(),
     };
   }
 }
