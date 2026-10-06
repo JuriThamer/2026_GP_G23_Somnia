@@ -13,6 +13,10 @@ import 'features/session/active_session_screen.dart';
 import 'features/session/dashboard_screen.dart';
 import 'features/session/history_screen.dart';
 import 'features/session/questionnaire_screen.dart';
+import 'features/settings/settings_screen.dart';
+import 'features/settings/profile_screen.dart';
+import 'features/settings/edit_profile_screen.dart';
+import 'features/settings/sounds_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
@@ -63,10 +67,10 @@ class AppRouter {
       AppRoutes.dashboard: (_) => const DashboardScreen(),
       AppRoutes.history: (_) => const HistoryScreen(),
       AppRoutes.questionnaire: (_) => const QuestionnaireScreen(),
-      AppRoutes.profile: (_) => const PlaceholderScreen('Profile'),
-      AppRoutes.editProfile: (_) => const PlaceholderScreen('Edit profile'),
-      AppRoutes.settings: (_) => const PlaceholderScreen('Settings'),
-      AppRoutes.sounds: (_) => const PlaceholderScreen('Sounds'),
+      AppRoutes.profile: (_) => const ProfileScreen(),
+      AppRoutes.editProfile: (_) => const EditProfileScreen(),
+      AppRoutes.settings: (_) => const SettingsScreen(),
+      AppRoutes.sounds: (_) => const SoundsScreen(),
     };
   }
 }

@@ -5,6 +5,7 @@ import '../../services/user_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import '../../theme/theme_controller.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -57,11 +58,19 @@ class _SignInScreenState extends State<SignInScreen> {
         email: _email.text.trim(),
         password: _password.text,
       );
+
+      final user = await _userService.getUser();
+
+      if (user != null) {
+        setThemeMode(user.themeMode);
+      }
+
       if (!mounted) return;
+
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoutes.home,
-        (route) => false,
+            (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       setState(() {
