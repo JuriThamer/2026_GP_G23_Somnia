@@ -8,12 +8,24 @@ import com.google.android.gms.wearable.WearableListenerService
 class WatchListenerService : WearableListenerService() {
 
     override fun onMessageReceived(event: MessageEvent) {
-        val reader = SensorReader.shared(applicationContext)
         Handler(Looper.getMainLooper()).post {
             when (event.path) {
-                "/somnia/start" -> reader.startWhenReady()
-                "/somnia/stop" -> reader.stop()
+                "/somnia/start" -> startRecording()
+                "/somnia/stop" -> stopRecording()
             }
         }
+    }
+
+    private fun startRecording() {
+        try {
+            RecordingService.start(applicationContext)
+        } catch (e: Exception) {
+            SensorReader.shared(applicationContext).startWhenReady()
+        }
+    }
+
+    private fun stopRecording() {
+        RecordingService.stop(applicationContext)
+        SensorReader.shared(applicationContext).stop()
     }
 }
