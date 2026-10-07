@@ -6,6 +6,7 @@ import '../../app_router.dart';
 import '../../models/app_user.dart';
 import '../../services/session_service.dart';
 import '../../services/user_service.dart';
+import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 
@@ -19,6 +20,7 @@ class ActiveSessionScreen extends StatefulWidget {
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   final _userService = UserService();
   final _sessionService = SessionService();
+  final _watchService = WatchService();
 
   Stream<AppUser?>? _userStream;
   Timer? _timer;
@@ -179,6 +181,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
     try {
       await _sessionService.endSession(_sessionId!);
+      await _watchService.stopRecording(_sessionId!);
       _timer?.cancel();
       if (!mounted) return;
       Navigator.pushReplacementNamed(

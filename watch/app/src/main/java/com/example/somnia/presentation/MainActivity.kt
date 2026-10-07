@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setTheme(android.R.style.Theme_DeviceDefault)
 
-        reader = SensorReader(applicationContext)
+        reader = SensorReader.shared(this)
 
         setContent {
             MaterialTheme {
@@ -87,12 +87,6 @@ class MainActivity : ComponentActivity() {
         } else {
             permissionRequest.launch(requiredPermissions())
         }
-    }
-
-    override fun onDestroy() {
-        reader.stop()
-        reader.disconnect()
-        super.onDestroy()
     }
 }
 
@@ -134,3 +128,4 @@ fun WatchScreen(state: SensorState, onToggle: () -> Unit) {
         }
     }
 }
+

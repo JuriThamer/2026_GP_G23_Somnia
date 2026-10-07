@@ -47,7 +47,18 @@ data class SensorState(
     val message: String = "Connecting",
 )
 
-class SensorReader(private val context: Context) {
+class SensorReader private constructor(private val context: Context) {
+
+    companion object {
+        @Volatile
+        private var instance: SensorReader? = null
+
+        fun shared(context: Context): SensorReader {
+            return instance ?: synchronized(this) {
+                instance ?: SensorReader(context.applicationContext).also { instance = it }
+            }
+        }
+    }
 
     var state by mutableStateOf(SensorState())
         private set
@@ -64,6 +75,7 @@ class SensorReader(private val context: Context) {
     private var heartTracker: HealthTracker? = null
     private var temperatureTracker: HealthTracker? = null
     private var motionTracker: HealthTracker? = null
+    private var pendingStart = false
 
     private fun update(change: SensorState.() -> SensorState) {
         handler.post { state = state.change() }
@@ -76,6 +88,12 @@ class SensorReader(private val context: Context) {
     private val connectionListener = object : ConnectionListener {
         override fun onConnectionSuccess() {
             update { copy(connected = true, message = "Ready") }
+            handler.post {
+                if (pendingStart) {
+                    pendingStart = false
+                    start()
+                }
+            }
         }
 
         override fun onConnectionEnded() {
@@ -188,6 +206,15 @@ class SensorReader(private val context: Context) {
         return tracker
     }
 
+    fun startWhenReady() {
+        if (state.connected) {
+            start()
+        } else {
+            pendingStart = true
+            connect()
+        }
+    }
+
     fun start() {
         val source = service ?: return
         if (!state.connected || state.recording) return
@@ -237,6 +264,7 @@ class SensorReader(private val context: Context) {
     }
 
     fun stop() {
+        pendingStart = false
         if (!state.recording) return
         closeTrackers()
         update { copy(recording = false, message = "Stopped") }
@@ -249,3 +277,4 @@ class SensorReader(private val context: Context) {
         handler.post { runCatching { source?.disconnectService() } }
     }
 }
+

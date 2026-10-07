@@ -4,6 +4,7 @@ import '../../models/app_user.dart';
 import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
 import '../../services/user_service.dart';
+import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _userService = UserService();
   final _sessionService = SessionService();
+  final _watchService = WatchService();
 
   Stream<AppUser?>? _userStream;
   SleepSession? _active;
@@ -60,8 +62,16 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _starting = true);
     try {
       final id = await _sessionService.startSession();
+      final sent = await _watchService.startRecording(id);
       if (!mounted) return;
       setState(() => _starting = false);
+      if (!sent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not reach the watch. Recording did not start.'),
+          ),
+        );
+      }
       await _open(AppRoutes.activeSession, arguments: id);
     } catch (_) {
       if (!mounted) return;
