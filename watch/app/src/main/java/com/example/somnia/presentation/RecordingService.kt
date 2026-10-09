@@ -16,12 +16,12 @@ class RecordingService : Service() {
     companion object {
         private const val CHANNEL_ID = "somnia_recording"
         private const val NOTIFICATION_ID = 1
+        private const val EXTRA_SESSION = "sessionId"
 
-        fun start(context: Context) {
-            ContextCompat.startForegroundService(
-                context,
-                Intent(context, RecordingService::class.java),
-            )
+        fun start(context: Context, sessionId: String) {
+            val intent = Intent(context, RecordingService::class.java)
+                .putExtra(EXTRA_SESSION, sessionId)
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun stop(context: Context) {
@@ -37,7 +37,8 @@ class RecordingService : Service() {
             buildNotification(),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH,
         )
-        SensorReader.shared(this).startWhenReady()
+        val sessionId = intent?.getStringExtra(EXTRA_SESSION)
+        SensorReader.shared(this).startWhenReady(sessionId)
         return START_STICKY
     }
 

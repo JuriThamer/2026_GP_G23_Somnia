@@ -13,28 +13,7 @@ import com.samsung.android.service.health.tracking.HealthTrackingService
 import com.samsung.android.service.health.tracking.data.DataPoint
 import com.samsung.android.service.health.tracking.data.HealthTrackerType
 import com.samsung.android.service.health.tracking.data.ValueKey
-import java.util.Collections
-
-data class HeartSample(
-    val timestamp: Long,
-    val bpm: Int,
-    val status: Int,
-    val ibi: List<Int>,
-)
-
-data class TemperatureSample(
-    val timestamp: Long,
-    val skin: Float,
-    val ambient: Float,
-    val status: Int,
-)
-
-data class MotionSample(
-    val timestamp: Long,
-    val x: Int,
-    val y: Int,
-    val z: Int,
-)
+import java.util.concurrent.atomic.AtomicInteger
 
 data class SensorState(
     val connected: Boolean = false,
@@ -63,12 +42,12 @@ class SensorReader private constructor(private val context: Context) {
     var state by mutableStateOf(SensorState())
         private set
 
-    val heartSamples: MutableList<HeartSample> =
-        Collections.synchronizedList(mutableListOf())
-    val temperatureSamples: MutableList<TemperatureSample> =
-        Collections.synchronizedList(mutableListOf())
-    val motionSamples: MutableList<MotionSample> =
-        Collections.synchronizedList(mutableListOf())
+    private val heartCount = AtomicInteger()
+    private val temperatureCount = AtomicInteger()
+    private val motionCount = AtomicInteger()
+
+    @Volatile
+    private var writer: BatchWriter? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private var service: HealthTrackingService? = null
@@ -76,6 +55,7 @@ class SensorReader private constructor(private val context: Context) {
     private var temperatureTracker: HealthTracker? = null
     private var motionTracker: HealthTracker? = null
     private var pendingStart = false
+    private var pendingSession: String? = null
 
     private fun update(change: SensorState.() -> SensorState) {
         handler.post { state = state.change() }
@@ -91,7 +71,7 @@ class SensorReader private constructor(private val context: Context) {
             handler.post {
                 if (pendingStart) {
                     pendingStart = false
-                    start()
+                    start(pendingSession)
                 }
             }
         }
@@ -126,11 +106,12 @@ class SensorReader private constructor(private val context: Context) {
                     val bpm = point.getValue(ValueKey.HeartRateSet.HEART_RATE) ?: 0
                     val status = point.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS) ?: 0
                     val ibi = point.getValue(ValueKey.HeartRateSet.IBI_LIST) ?: emptyList()
-                    heartSamples.add(HeartSample(point.timestamp, bpm, status, ibi.toList()))
+                    writer?.addHeart(point.timestamp, bpm, status, ibi.toList())
+                    heartCount.incrementAndGet()
                     if (bpm > 0) latest = bpm
                 }
             }
-            val count = heartSamples.size
+            val count = heartCount.get()
             val value = latest
             update { copy(heartRate = value ?: heartRate, heartCount = count) }
         }
@@ -140,6 +121,7 @@ class SensorReader private constructor(private val context: Context) {
         override fun onError(error: HealthTracker.TrackerError) {
             showMessage(errorText(error))
         }
+
     }
 
     private val temperatureListener = object : HealthTracker.TrackerEventListener {
@@ -150,11 +132,12 @@ class SensorReader private constructor(private val context: Context) {
                     val skin = point.getValue(ValueKey.SkinTemperatureSet.OBJECT_TEMPERATURE) ?: 0f
                     val ambient = point.getValue(ValueKey.SkinTemperatureSet.AMBIENT_TEMPERATURE) ?: 0f
                     val status = point.getValue(ValueKey.SkinTemperatureSet.STATUS) ?: 0
-                    temperatureSamples.add(TemperatureSample(point.timestamp, skin, ambient, status))
+                    writer?.addTemperature(point.timestamp, skin, ambient, status)
+                    temperatureCount.incrementAndGet()
                     if (skin > 0f) latest = skin
                 }
             }
-            val count = temperatureSamples.size
+            val count = temperatureCount.get()
             val value = latest
             update { copy(skinTemperature = value ?: skinTemperature, temperatureCount = count) }
         }
@@ -173,10 +156,11 @@ class SensorReader private constructor(private val context: Context) {
                     val x = point.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X) ?: 0
                     val y = point.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y) ?: 0
                     val z = point.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z) ?: 0
-                    motionSamples.add(MotionSample(point.timestamp, x, y, z))
+                    writer?.addMotion(point.timestamp, x, y, z)
+                    motionCount.incrementAndGet()
                 }
             }
-            val count = motionSamples.size
+            val count = motionCount.get()
             update { copy(motionCount = count) }
         }
 
@@ -206,22 +190,26 @@ class SensorReader private constructor(private val context: Context) {
         return tracker
     }
 
-    fun startWhenReady() {
+    fun startWhenReady(sessionId: String? = null) {
         if (state.connected) {
-            start()
+            start(sessionId)
         } else {
             pendingStart = true
+            pendingSession = sessionId
             connect()
         }
     }
 
-    fun start() {
+    fun start(sessionId: String? = null) {
         val source = service ?: return
         if (!state.connected || state.recording) return
 
-        heartSamples.clear()
-        temperatureSamples.clear()
-        motionSamples.clear()
+        heartCount.set(0)
+        temperatureCount.set(0)
+        motionCount.set(0)
+
+        val name = sessionId?.takeIf { it.isNotBlank() } ?: "local-${System.currentTimeMillis()}"
+        writer = BatchWriter(context, name).also { it.begin() }
 
         try {
             val supported = source.trackingCapability.supportHealthTrackerTypes
@@ -247,6 +235,7 @@ class SensorReader private constructor(private val context: Context) {
             }
         } catch (e: Exception) {
             closeTrackers()
+            closeWriter()
             showMessage("Could not start sensors")
         }
     }
@@ -263,10 +252,18 @@ class SensorReader private constructor(private val context: Context) {
         }
     }
 
+    private fun closeWriter() {
+        val current = writer
+        writer = null
+        current?.finish()
+    }
+
     fun stop() {
         pendingStart = false
+        pendingSession = null
         if (!state.recording) return
         closeTrackers()
+        closeWriter()
         update { copy(recording = false, message = "Stopped") }
     }
 
@@ -277,4 +274,3 @@ class SensorReader private constructor(private val context: Context) {
         handler.post { runCatching { source?.disconnectService() } }
     }
 }
-
