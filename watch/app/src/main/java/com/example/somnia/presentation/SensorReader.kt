@@ -3,6 +3,7 @@ package com.example.somnia.presentation
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -29,6 +30,9 @@ data class SensorState(
 class SensorReader private constructor(private val context: Context) {
 
     companion object {
+        private const val FLUSH_MILLIS = 60 * 1000L
+        private const val STOP_DELAY_MILLIS = 3 * 1000L
+
         @Volatile
         private var instance: SensorReader? = null
 
@@ -56,6 +60,15 @@ class SensorReader private constructor(private val context: Context) {
     private var motionTracker: HealthTracker? = null
     private var pendingStart = false
     private var pendingSession: String? = null
+    private var stopping = false
+
+    @Volatile
+    private var lastFlush = 0L
+
+    private val wakeLock by lazy {
+        val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "somnia:stop")
+    }
 
     private fun update(change: SensorState.() -> SensorState) {
         handler.post { state = state.change() }
@@ -114,6 +127,7 @@ class SensorReader private constructor(private val context: Context) {
             val count = heartCount.get()
             val value = latest
             update { copy(heartRate = value ?: heartRate, heartCount = count) }
+            flushIfDue()
         }
 
         override fun onFlushCompleted() {}
@@ -121,7 +135,6 @@ class SensorReader private constructor(private val context: Context) {
         override fun onError(error: HealthTracker.TrackerError) {
             showMessage(errorText(error))
         }
-
     }
 
     private val temperatureListener = object : HealthTracker.TrackerEventListener {
@@ -140,6 +153,7 @@ class SensorReader private constructor(private val context: Context) {
             val count = temperatureCount.get()
             val value = latest
             update { copy(skinTemperature = value ?: skinTemperature, temperatureCount = count) }
+            flushIfDue()
         }
 
         override fun onFlushCompleted() {}
@@ -162,6 +176,7 @@ class SensorReader private constructor(private val context: Context) {
             }
             val count = motionCount.get()
             update { copy(motionCount = count) }
+            flushIfDue()
         }
 
         override fun onFlushCompleted() {}
@@ -208,6 +223,7 @@ class SensorReader private constructor(private val context: Context) {
         temperatureCount.set(0)
         motionCount.set(0)
 
+        lastFlush = System.currentTimeMillis()
         val name = sessionId?.takeIf { it.isNotBlank() } ?: "local-${System.currentTimeMillis()}"
         writer = BatchWriter(context, name).also { it.begin() }
 
@@ -240,6 +256,22 @@ class SensorReader private constructor(private val context: Context) {
         }
     }
 
+    private fun flushIfDue() {
+        val now = System.currentTimeMillis()
+        if (now - lastFlush < FLUSH_MILLIS) return
+        lastFlush = now
+        flushTrackers()
+    }
+
+    private fun flushTrackers() {
+        val trackers = listOf(heartTracker, temperatureTracker, motionTracker)
+        handler.post {
+            for (tracker in trackers) {
+                runCatching { tracker?.flush() }
+            }
+        }
+    }
+
     private fun closeTrackers() {
         val trackers = listOf(heartTracker, temperatureTracker, motionTracker)
         heartTracker = null
@@ -261,10 +293,16 @@ class SensorReader private constructor(private val context: Context) {
     fun stop() {
         pendingStart = false
         pendingSession = null
-        if (!state.recording) return
-        closeTrackers()
-        closeWriter()
-        update { copy(recording = false, message = "Stopped") }
+        if (!state.recording || stopping) return
+        stopping = true
+        wakeLock.acquire(STOP_DELAY_MILLIS * 3)
+        flushTrackers()
+        handler.postDelayed({
+            closeTrackers()
+            closeWriter()
+            stopping = false
+            update { copy(recording = false, message = "Stopped") }
+        }, STOP_DELAY_MILLIS)
     }
 
     fun disconnect() {

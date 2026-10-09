@@ -18,20 +18,17 @@ class BatchWriter(context: Context, sessionId: String) {
     private val motion = StringBuilder()
     private val temperature = StringBuilder()
     private var batch = 0
+    private var lastWrite = 0L
+    private var writeQueued = false
 
     private val thread = HandlerThread("somnia-writer").apply { start() }
     private val handler = Handler(thread.looper)
 
-    private val tick = object : Runnable {
-        override fun run() {
-            flush()
-            handler.postDelayed(this, BATCH_MILLIS)
-        }
-    }
-
     fun begin() {
-        batch = folder.listFiles()?.count { it.name.startsWith("heart_") } ?: 0
-        handler.postDelayed(tick, BATCH_MILLIS)
+        synchronized(lock) {
+            batch = folder.listFiles()?.count { it.name.startsWith("heart_") } ?: 0
+            lastWrite = System.currentTimeMillis()
+        }
     }
 
     fun addHeart(timestamp: Long, bpm: Int, status: Int, ibi: List<Int>) {
@@ -40,6 +37,7 @@ class BatchWriter(context: Context, sessionId: String) {
                 .append(bpm).append(',')
                 .append(status).append(',')
                 .append(ibi.joinToString(";")).append('\n')
+            writeIfDue()
         }
     }
 
@@ -49,6 +47,7 @@ class BatchWriter(context: Context, sessionId: String) {
                 .append(x).append(',')
                 .append(y).append(',')
                 .append(z).append('\n')
+            writeIfDue()
         }
     }
 
@@ -58,7 +57,16 @@ class BatchWriter(context: Context, sessionId: String) {
                 .append(skin).append(',')
                 .append(ambient).append(',')
                 .append(status).append('\n')
+            writeIfDue()
         }
+    }
+
+    private fun writeIfDue() {
+        val now = System.currentTimeMillis()
+        if (writeQueued || now - lastWrite < BATCH_MILLIS) return
+        writeQueued = true
+        lastWrite = now
+        handler.post { flush() }
     }
 
     private fun flush() {
@@ -72,6 +80,7 @@ class BatchWriter(context: Context, sessionId: String) {
             heart.setLength(0)
             motion.setLength(0)
             temperature.setLength(0)
+            writeQueued = false
         }
         if (heartRows.isEmpty() && motionRows.isEmpty() && temperatureRows.isEmpty()) return
 
@@ -87,7 +96,6 @@ class BatchWriter(context: Context, sessionId: String) {
     }
 
     fun finish() {
-        handler.removeCallbacks(tick)
         handler.post {
             flush()
             thread.quitSafely()
