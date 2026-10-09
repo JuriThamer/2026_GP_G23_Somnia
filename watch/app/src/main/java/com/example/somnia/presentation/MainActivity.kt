@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 
@@ -35,15 +34,15 @@ class MainActivity : ComponentActivity() {
 
     private val permissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        if (result.values.all { it }) {
+    ) {
+        if (isGranted(sensorPermissions())) {
             reader.connect()
         } else {
             reader.showMessage("Sensor permission needed")
         }
     }
 
-    private fun requiredPermissions(): Array<String> {
+    private fun sensorPermissions(): Array<String> {
         return if (Build.VERSION.SDK_INT >= 36) {
             arrayOf(
                 "android.permission.health.READ_HEART_RATE",
@@ -58,8 +57,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun hasPermissions(): Boolean {
-        return requiredPermissions().all {
+    private fun allPermissions(): Array<String> {
+        return if (Build.VERSION.SDK_INT >= 33) {
+            sensorPermissions() + Manifest.permission.POST_NOTIFICATIONS
+        } else {
+            sensorPermissions()
+        }
+    }
+
+    private fun isGranted(permissions: Array<String>): Boolean {
+        return permissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
@@ -73,25 +80,20 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                WatchScreen(
-                    state = reader.state,
-                    onToggle = {
-                        if (reader.state.recording) reader.stop() else reader.start()
-                    },
-                )
+                WatchScreen(state = reader.state)
             }
         }
 
-        if (hasPermissions()) {
+        if (isGranted(allPermissions())) {
             reader.connect()
         } else {
-            permissionRequest.launch(requiredPermissions())
+            permissionRequest.launch(allPermissions())
         }
     }
 }
 
 @Composable
-fun WatchScreen(state: SensorState, onToggle: () -> Unit) {
+fun WatchScreen(state: SensorState) {
     val text = Color(0xFFEFE6D6)
     val muted = Color(0xFFB3A7C6)
     val heart = state.heartRate?.toString() ?: "--"
@@ -122,10 +124,5 @@ fun WatchScreen(state: SensorState, onToggle: () -> Unit) {
             color = muted,
             fontSize = 11.sp,
         )
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onToggle, enabled = state.connected) {
-            Text(text = if (state.recording) "Stop" else "Start")
-        }
     }
 }
-
