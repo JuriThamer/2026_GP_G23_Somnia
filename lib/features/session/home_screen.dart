@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../app_router.dart';
 import '../../models/app_user.dart';
@@ -27,6 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
   SleepSession? _active;
   SleepSession? _latest;
   bool _starting = false;
+  bool _uploading = false;
+  int _pending = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -34,21 +39,45 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_userService.isSignedIn) {
       _userStream = _userService.watchUser();
       _load();
+      _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+        if (_pending == 0) _upload();
+      });
     }
   }
 
- Future<void> _load() async {
-  _uploadService.uploadPending().catchError((_) => 0);
-  try {
-    final active = await _sessionService.getActiveSession();
-    final latest = await _sessionService.getLatestCompleted();
-    if (!mounted) return;
-    setState(() {
-      _active = active;
-      _latest = latest;
-    });
-  } catch (_) {}
-}
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    _upload();
+    try {
+      final active = await _sessionService.getActiveSession();
+      final latest = await _sessionService.getLatestCompleted();
+      if (!mounted) return;
+      setState(() {
+        _active = active;
+        _latest = latest;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _upload() async {
+    if (_uploading) return;
+    _uploading = true;
+    final pending = await _uploadService.pendingCount().catchError((_) => 0);
+    if (pending > 0) {
+      if (mounted) setState(() => _pending = pending);
+      await _uploadService.uploadPending().catchError((_) => 0);
+    }
+    final left = await _uploadService.pendingCount().catchError((_) => 0);
+    _uploading = false;
+    if (mounted && (pending > 0 || left != _pending)) {
+      setState(() => _pending = left);
+    }
+  }
 
   Future<void> _open(String route, {Object? arguments}) async {
     await Navigator.pushNamed(context, route, arguments: arguments);
@@ -337,6 +366,50 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Column(
                       children: [
+                        if (_pending > 0) ...[
+                          AppCard(
+                            alt: true,
+                            onTap: _uploading ? null : _upload,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _uploading
+                                            ? 'Uploading sleep data'
+                                            : 'Sleep data waiting',
+                                        style: text.bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _uploading
+                                            ? (_pending == 1
+                                                ? '1 night'
+                                                : '$_pending nights')
+                                            : 'Tap to try again',
+                                        style: text.bodyLarge,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_uploading)
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: c.text,
+                                    ),
+                                  )
+                                else
+                                  Icon(Icons.refresh, color: c.text),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
                         AppCard(
                           alt: true,
                           onTap: _latest == null
