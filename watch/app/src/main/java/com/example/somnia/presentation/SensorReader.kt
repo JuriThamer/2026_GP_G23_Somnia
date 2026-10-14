@@ -53,6 +53,7 @@ class SensorReader private constructor(private val context: Context) {
 
     @Volatile
     private var writer: BatchWriter? = null
+    val sessionId: String? get() = writer?.folder?.name
 
     private val handler = Handler(Looper.getMainLooper())
     private var service: HealthTrackingService? = null

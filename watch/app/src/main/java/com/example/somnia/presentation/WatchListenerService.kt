@@ -23,10 +23,29 @@ class WatchListenerService : WearableListenerService() {
     }
 
     private fun startRecording(sessionId: String) {
-        try {
-            RecordingService.start(applicationContext, sessionId)
-        } catch (e: Exception) {
-            SensorReader.shared(applicationContext).startWhenReady(sessionId)
+        val context = applicationContext
+        val reader = SensorReader.shared(context)
+        val current = reader.sessionId
+        if (!reader.state.recording || current == null || current == sessionId) {
+            begin(sessionId)
+            return
+        }
+        reader.stop { folder ->
+            if (folder == null) {
+                begin(sessionId)
+            } else {
+                FileSender.send(context, folder) { begin(sessionId) }
+            }
+        }
+    }
+
+    private fun begin(sessionId: String) {
+        Handler(Looper.getMainLooper()).post {
+            try {
+                RecordingService.start(applicationContext, sessionId)
+            } catch (e: Exception) {
+                SensorReader.shared(applicationContext).startWhenReady(sessionId)
+            }
         }
     }
 
