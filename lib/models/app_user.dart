@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'alarm.dart';
+
 class AppUser {
   final String uid;
   final String name;
   final String email;
   final String themeMode;
   final Map<String, dynamic>? watch;
+  final Alarm alarm;
   final DateTime? createdAt;
 
   const AppUser({
@@ -14,6 +17,7 @@ class AppUser {
     required this.email,
     this.themeMode = 'dark',
     this.watch,
+    this.alarm = const Alarm(),
     this.createdAt,
   });
 
@@ -26,6 +30,9 @@ class AppUser {
       watch: data['watch'] == null
           ? null
           : Map<String, dynamic>.from(data['watch']),
+      alarm: data['alarm'] == null
+          ? const Alarm()
+          : Alarm.fromMap(Map<String, dynamic>.from(data['alarm'])),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -36,6 +43,7 @@ class AppUser {
       'email': email,
       'themeMode': themeMode,
       'watch': watch,
+      'alarm': alarm.toMap(),
       'createdAt': createdAt == null
           ? FieldValue.serverTimestamp()
           : Timestamp.fromDate(createdAt!),

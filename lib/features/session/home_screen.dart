@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../app_router.dart';
+import '../../models/alarm.dart';
 import '../../models/app_user.dart';
 import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
@@ -11,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../services/upload_service.dart';
+import '../alarm/alarm_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -109,7 +112,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!sent) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not reach the watch. Recording did not start.'),
+            content: Text(
+              'Could not reach the watch. Recording did not start.',
+            ),
           ),
         );
       }
@@ -131,11 +136,31 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
+  String _alarmLabel(Alarm alarm) {
+    if (!alarm.isSet) return 'Not set';
+    final parts = alarm.time.split(':');
+    final h = int.parse(parts[0]);
+    final m = parts[1];
+    final hour = h % 12 == 0 ? 12 : h % 12;
+    final period = h < 12 ? 'AM' : 'PM';
+    return '$hour:$m $period';
+  }
+
   String _date(DateTime? d) {
     if (d == null) return '';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${d.day} ${months[d.month - 1]}';
   }
@@ -196,29 +221,29 @@ class _HomeScreenState extends State<HomeScreen> {
               final dialTitle = hasActive
                   ? 'In progress'
                   : connected
-                      ? 'Ready'
-                      : 'No watch';
+                  ? 'Ready'
+                  : 'No watch';
               final dialLine = hasActive
                   ? 'A sleep session is already running.'
                   : connected
-                      ? 'Your watch is connected.'
-                      : paired
-                          ? 'Your watch is out of reach.'
-                          : 'Connect your watch to begin.';
+                  ? 'Your watch is connected.'
+                  : paired
+                  ? 'Your watch is out of reach.'
+                  : 'Connect your watch to begin.';
               final buttonLabel = hasActive
                   ? 'Resume Session'
                   : connected
-                      ? 'Start Sleep Session'
-                      : paired
-                          ? 'Check Watch'
-                          : 'Connect Watch';
+                  ? 'Start Sleep Session'
+                  : paired
+                  ? 'Check Watch'
+                  : 'Connect Watch';
               final hint = hasActive
                   ? 'Open the running session to end it.'
                   : connected
-                      ? 'Start when you are in bed and ready to sleep.'
-                      : paired
-                          ? 'Keep your watch nearby with Bluetooth on.'
-                          : 'Somnia needs your Galaxy Watch7 to sense the night.';
+                  ? 'Start when you are in bed and ready to sleep.'
+                  : paired
+                  ? 'Keep your watch nearby with Bluetooth on.'
+                  : 'Somnia needs your Galaxy Watch7 to sense the night.';
 
               return Column(
                 children: [
@@ -355,8 +380,24 @@ class _HomeScreenState extends State<HomeScreen> {
                               _Satellite(
                                 icon: Icons.watch_outlined,
                                 label: 'Watch',
-                                value: connected ? 'Connected' : 'Not connected',
+                                value: connected
+                                    ? 'Connected'
+                                    : 'Not connected',
                                 onTap: () => _open(AppRoutes.watch),
+                              ),
+                              const SizedBox(width: 36),
+                              _Satellite(
+                                icon: Icons.alarm,
+                                label: 'Wake-up',
+                                value: _alarmLabel(
+                                  user?.alarm ?? const Alarm(),
+                                ),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AlarmScreen(),
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 36),
                               _Satellite(
@@ -390,7 +431,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         _uploading
@@ -402,8 +444,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         _uploading
                                             ? (_pending == 1
-                                                ? '1 night'
-                                                : '$_pending nights')
+                                                  ? '1 night'
+                                                  : '$_pending nights')
                                             : 'Tap to try again',
                                         style: text.bodyLarge,
                                       ),

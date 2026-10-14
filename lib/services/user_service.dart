@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
+import '../models/alarm.dart';
 import '../models/app_user.dart';
 
 class UserService {
@@ -76,6 +76,11 @@ class UserService {
   Future<void> updateWatch(Map<String, dynamic>? watch) async {
     await _userDoc(uid!).update({'watch': watch});
   }
+
+  Future<void> updateAlarm(Alarm alarm) async {
+    await _userDoc(uid!).update({'alarm': alarm.toMap()});
+  }
+
   Future<void> updateEmail({
     required String currentPassword,
     required String newEmail,
@@ -94,10 +99,8 @@ class UserService {
       password: currentPassword,
     );
 
-    // Re-authenticate the user first.
     await user.reauthenticateWithCredential(credential);
 
-    // Send verification email to the new address.
     await user.verifyBeforeUpdateEmail(newEmail.trim());
   }
 
