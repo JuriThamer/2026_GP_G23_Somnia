@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_user.dart';
 import '../../services/user_service.dart';
+import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 
@@ -15,9 +16,11 @@ class WatchScreen extends StatefulWidget {
 
 class _WatchScreenState extends State<WatchScreen> {
   final _userService = UserService();
+  final _watchService = WatchService();
 
   Stream<AppUser?>? _userStream;
-  String? _busy;
+  WatchInfo? _found;
+  String? _busy = 'checking';
   String? _error;
 
   @override
@@ -26,6 +29,24 @@ class _WatchScreenState extends State<WatchScreen> {
     if (_userService.isSignedIn) {
       _userStream = _userService.watchUser();
     }
+    _find();
+  }
+
+  Future<void> _check() async {
+    setState(() {
+      _error = null;
+      _busy = 'checking';
+    });
+    await _find();
+  }
+
+  Future<void> _find() async {
+    final found = await _watchService.findWatch();
+    if (!mounted) return;
+    setState(() {
+      _found = found;
+      _busy = null;
+    });
   }
 
   Future<void> _connect() async {
@@ -33,15 +54,25 @@ class _WatchScreenState extends State<WatchScreen> {
       _error = null;
       _busy = 'searching';
     });
-    await Future.delayed(const Duration(milliseconds: 1400));
+    final found = await _watchService.findWatch();
     if (!mounted) return;
-    setState(() => _busy = 'connecting');
-    await Future.delayed(const Duration(milliseconds: 1000));
+    if (found == null) {
+      setState(() {
+        _found = null;
+        _busy = null;
+        _error = 'We could not find your watch. Check that it is switched on, nearby, that Bluetooth is on and that the Somnia watch app is installed, then try again.';
+      });
+      return;
+    }
+    setState(() {
+      _found = found;
+      _busy = 'connecting';
+    });
 
     try {
       await _userService.updateWatch({
-        'deviceId': 'demo-galaxy-watch7',
-        'model': 'Galaxy Watch7',
+        'deviceId': found.id,
+        'model': found.name,
         'connectedAt': Timestamp.now(),
       });
       if (!mounted) return;
@@ -129,11 +160,14 @@ class _WatchScreenState extends State<WatchScreen> {
               stream: _userStream,
               builder: (context, snapshot) {
                 final watch = snapshot.data?.watch;
-                final connected = watch != null;
+                final paired = watch != null;
+                final connected = paired && _found != null;
                 final busy = _busy != null;
                 final failed = _error != null;
 
-                final label = _busy == 'searching'
+                final label = _busy == 'checking'
+                    ? 'Checking…'
+                    : _busy == 'searching'
                     ? 'Searching…'
                     : _busy == 'connecting'
                     ? 'Connecting…'
@@ -141,6 +175,8 @@ class _WatchScreenState extends State<WatchScreen> {
                     ? 'Connection failed'
                     : connected
                     ? 'Connected'
+                    : paired
+                    ? 'Out of reach'
                     : 'Not connected';
                 final labelColor = busy
                     ? c.muted
@@ -149,7 +185,9 @@ class _WatchScreenState extends State<WatchScreen> {
                     : connected
                     ? c.success
                     : c.warning;
-                final message = _busy == 'searching'
+                final message = _busy == 'checking'
+                    ? 'Looking for your watch…'
+                    : _busy == 'searching'
                     ? 'Searching for a Galaxy Watch7. Keep the watch nearby, switched on and on your wrist.'
                     : _busy == 'connecting'
                     ? 'Galaxy Watch7 found. Connecting…'
@@ -157,6 +195,8 @@ class _WatchScreenState extends State<WatchScreen> {
                     ? _error!
                     : connected
                     ? 'Your watch is connected and ready for a sleep session.'
+                    : paired
+                    ? 'Your watch is paired, but Somnia cannot reach it right now. Keep it nearby with Bluetooth on, then check again.'
                     : 'Your watch is not connected. Somnia will search for a supported Galaxy Watch7 nearby.';
 
                 return Column(
@@ -252,17 +292,24 @@ class _WatchScreenState extends State<WatchScreen> {
                       ),
                     ),
                     const Spacer(),
-                    if (!connected)
+                    if (!paired)
                       AppButton(
                         label: failed ? 'Try Again' : 'Connect Watch',
                         loading: busy,
-                        onPressed: _connect,
+                        onPressed: busy ? null : _connect,
                       ),
-                    if (connected) ...[
-                      AppButton(
-                        label: 'Done',
-                        onPressed: () => Navigator.pop(context),
-                      ),
+                    if (paired) ...[
+                      if (connected)
+                        AppButton(
+                          label: 'Done',
+                          onPressed: () => Navigator.pop(context),
+                        )
+                      else
+                        AppButton(
+                          label: 'Check Again',
+                          loading: busy,
+                          onPressed: busy ? null : _check,
+                        ),
                       const SizedBox(height: 10),
                       AppButton(
                         label: 'Disconnect',

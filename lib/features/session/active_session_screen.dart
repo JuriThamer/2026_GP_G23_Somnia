@@ -31,6 +31,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   bool _ending = false;
   bool _started = false;
   String? _error;
+  WatchInfo? _found;
+  bool _checked = false;
 
   @override
   void didChangeDependencies() {
@@ -65,14 +67,25 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         _elapsed = DateTime.now().difference(_start!);
         _loading = false;
       });
+      _checkWatch();
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() => _elapsed = DateTime.now().difference(_start!));
+        if (_elapsed.inSeconds % 15 == 0) _checkWatch();
       });
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _checkWatch() async {
+    final found = await _watchService.findWatch();
+    if (!mounted) return;
+    setState(() {
+      _found = found;
+      _checked = true;
+    });
   }
 
   @override
@@ -326,7 +339,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                     StreamBuilder<AppUser?>(
                       stream: _userStream,
                       builder: (context, snapshot) {
-                        final connected = snapshot.data?.watch != null;
+                        final connected = !_checked ||
+                            (snapshot.data?.watch != null && _found != null);
                         final color = connected ? c.success : c.error;
                         return Container(
                           width: double.infinity,

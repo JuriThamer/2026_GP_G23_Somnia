@@ -1,5 +1,6 @@
 package com.example.somnia
 
+import android.util.Log
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
@@ -44,8 +45,14 @@ class MainActivity : FlutterActivity() {
         Wearable.getCapabilityClient(this)
             .getCapability("somnia_watch", CapabilityClient.FILTER_REACHABLE)
             .addOnSuccessListener { info ->
-                val nodes = info.nodes
-                onResult(nodes.firstOrNull { it.isNearby } ?: nodes.firstOrNull())
+                Wearable.getNodeClient(this).connectedNodes
+                    .addOnSuccessListener { connected ->
+                        val ids = connected.map { it.id }.toSet()
+                        val nodes = info.nodes.filter { it.id in ids }
+                        Log.d("somnia", "capability=${info.nodes.map { "${it.displayName}/${it.id}/${it.isNearby}" }} connected=${connected.map { "${it.displayName}/${it.id}/${it.isNearby}" }}")
+                        onResult(nodes.firstOrNull { it.isNearby })
+                    }
+                    .addOnFailureListener { onResult(null) }
             }
             .addOnFailureListener { onResult(null) }
     }

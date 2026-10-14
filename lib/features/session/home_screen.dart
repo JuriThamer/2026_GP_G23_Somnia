@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _uploading = false;
   int _pending = 0;
   Timer? _timer;
+  WatchInfo? _found;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _userStream = _userService.watchUser();
       _load();
       _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+        _checkWatch();
         if (_pending == 0) _upload();
       });
     }
@@ -53,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _load() async {
     _upload();
+    _checkWatch();
     try {
       final active = await _sessionService.getActiveSession();
       final latest = await _sessionService.getLatestCompleted();
@@ -62,6 +65,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _latest = latest;
       });
     } catch (_) {}
+  }
+
+  Future<void> _checkWatch() async {
+    final found = await _watchService.findWatch();
+    if (!mounted || found?.id == _found?.id) return;
+    setState(() => _found = found);
   }
 
   Future<void> _upload() async {
@@ -179,7 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
               final user = snapshot.data;
               final name = user?.name ?? '';
               final initial = name.isEmpty ? '?' : name[0].toUpperCase();
-              final connected = user?.watch != null;
+              final paired = user?.watch != null;
+              final connected = paired && _found != null;
               final hasActive = _active != null;
               final ready = connected || hasActive;
 
@@ -192,17 +202,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? 'A sleep session is already running.'
                   : connected
                       ? 'Your watch is connected.'
-                      : 'Connect your watch to begin.';
+                      : paired
+                          ? 'Your watch is out of reach.'
+                          : 'Connect your watch to begin.';
               final buttonLabel = hasActive
                   ? 'Resume Session'
                   : connected
                       ? 'Start Sleep Session'
-                      : 'Connect Watch';
+                      : paired
+                          ? 'Check Watch'
+                          : 'Connect Watch';
               final hint = hasActive
                   ? 'Open the running session to end it.'
                   : connected
                       ? 'Start when you are in bed and ready to sleep.'
-                      : 'Somnia needs your Galaxy Watch7 to sense the night.';
+                      : paired
+                          ? 'Keep your watch nearby with Bluetooth on.'
+                          : 'Somnia needs your Galaxy Watch7 to sense the night.';
 
               return Column(
                 children: [
