@@ -215,10 +215,9 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
         submittedAt: DateTime.now(),
       );
 
-      await SessionService().saveQuestionnaire(
-        sessionId,
-        questionnaire,
-      );
+          SessionService()
+          .saveQuestionnaire(sessionId, questionnaire)
+          .catchError((_) {});
 
       if (!mounted) return;
 

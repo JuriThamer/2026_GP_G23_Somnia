@@ -26,8 +26,7 @@ class SessionService {
   Future<void> endSession(String sessionId) async {
     await _sessions.doc(sessionId).update({
       'status': 'processing',
-      'endTime': FieldValue.serverTimestamp(),
-    });
+      'endTime': Timestamp.now(),    });
   }
 
   Future<void> addRawDataPath(String sessionId, String path) async {

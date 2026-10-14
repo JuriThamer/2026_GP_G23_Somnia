@@ -180,7 +180,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     });
 
     try {
-      await _sessionService.endSession(_sessionId!);
+      _sessionService.endSession(_sessionId!).catchError((_) {});
       await _watchService.stopRecording(_sessionId!);
       _timer?.cancel();
       if (!mounted) return;
