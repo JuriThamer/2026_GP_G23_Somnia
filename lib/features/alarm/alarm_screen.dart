@@ -21,7 +21,6 @@ class _AlarmScreenState extends State<AlarmScreen> {
   Alarm _draft = const Alarm();
   String? _error;
   bool _loading = true;
-  bool _saving = false;
 
   @override
   void initState() {
@@ -150,7 +149,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
     _update(_draft.copyWith(days: days));
   }
 
-  Future<void> _save() async {
+  void _save() {
     if (_draft.smart && _draft.time.isEmpty) {
       setState(() => _error = 'Set a target wake-up time to use Smart Alarm.');
       return;
@@ -159,21 +158,11 @@ class _AlarmScreenState extends State<AlarmScreen> {
       setState(() => _error = 'Select at least one day for this wake-up time.');
       return;
     }
-    setState(() => _saving = true);
-    try {
-      await _userService.updateAlarm(_draft);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Smart Alarm settings saved')),
-      );
-      Navigator.pop(context, _draft);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _error = 'Could not save your alarm. Please try again.';
-      });
-    }
+    _userService.updateAlarm(_draft).catchError((_) {});
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Smart Alarm settings saved')));
+    Navigator.pop(context, _draft);
   }
 
   Widget _label(String value, TextTheme text) {
@@ -411,8 +400,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                     Expanded(
                       child: AppButton(
                         label: 'Save',
-                        loading: _saving,
-                        onPressed: _loading || _saving ? null : _save,
+                        onPressed: _loading ? null : _save,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -420,9 +408,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                       child: AppButton(
                         label: 'Cancel',
                         style: AppButtonStyle.secondary,
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ),
                   ],
