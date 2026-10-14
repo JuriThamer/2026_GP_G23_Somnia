@@ -12,13 +12,32 @@ import java.io.File
 class WatchListenerService : WearableListenerService() {
 
     override fun onMessageReceived(event: MessageEvent) {
-        val sessionId = String(event.data)
+        val parts = String(event.data).split('|')
+        val sessionId = parts[0]
         Handler(Looper.getMainLooper()).post {
             when (event.path) {
-                "/somnia/start" -> startRecording(sessionId)
-                "/somnia/stop" -> stopRecording()
+                "/somnia/start" -> {
+                    scheduleAlarm(parts)
+                    startRecording(sessionId)
+                }
+                "/somnia/stop" -> {
+                    AlarmScheduler.cancel(applicationContext)
+                    stopRecording()
+                }
+                "/somnia/alarm" -> AlarmScheduler.ringNow(applicationContext)
                 "/somnia/ack" -> deleteSession(sessionId)
             }
+        }
+    }
+
+    private fun scheduleAlarm(parts: List<String>) {
+        val context = applicationContext
+        val wakeAt = parts.getOrNull(1)?.toLongOrNull()
+        val repeats = parts.getOrNull(4)?.toIntOrNull() ?: 0
+        if (wakeAt == null) {
+            AlarmScheduler.cancel(context)
+        } else {
+            AlarmScheduler.schedule(context, wakeAt, repeats)
         }
     }
 
