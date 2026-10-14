@@ -26,7 +26,15 @@ class WatchListenerService : WearableListenerService() {
     }
 
     private fun stopRecording() {
-        RecordingService.stop(applicationContext)
-        SensorReader.shared(applicationContext).stop()
+        val context = applicationContext
+        SensorReader.shared(context).stop { folder ->
+            if (folder == null) {
+                RecordingService.stop(context)
+            } else {
+                FileSender.send(context, folder) {
+                    RecordingService.stop(context)
+                }
+            }
+        }
     }
 }

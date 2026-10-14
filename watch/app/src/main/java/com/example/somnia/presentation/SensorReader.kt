@@ -15,6 +15,7 @@ import com.samsung.android.service.health.tracking.data.DataPoint
 import com.samsung.android.service.health.tracking.data.HealthTrackerType
 import com.samsung.android.service.health.tracking.data.ValueKey
 import java.util.concurrent.atomic.AtomicInteger
+import java.io.File
 
 data class SensorState(
     val connected: Boolean = false,
@@ -284,22 +285,29 @@ class SensorReader private constructor(private val context: Context) {
         }
     }
 
-    private fun closeWriter() {
+    private fun closeWriter(onDone: (File?) -> Unit = {}) {
         val current = writer
         writer = null
-        current?.finish()
+        if (current == null) {
+            onDone(null)
+        } else {
+            current.finish { folder -> onDone(folder) }
+        }
     }
 
-    fun stop() {
+    fun stop(onFinished: (File?) -> Unit = {}) {
         pendingStart = false
         pendingSession = null
-        if (!state.recording || stopping) return
+        if (!state.recording || stopping) {
+            onFinished(null)
+            return
+        }
         stopping = true
         wakeLock.acquire(STOP_DELAY_MILLIS * 3)
         flushTrackers()
         handler.postDelayed({
             closeTrackers()
-            closeWriter()
+            closeWriter(onFinished)
             stopping = false
             update { copy(recording = false, message = "Stopped") }
         }, STOP_DELAY_MILLIS)

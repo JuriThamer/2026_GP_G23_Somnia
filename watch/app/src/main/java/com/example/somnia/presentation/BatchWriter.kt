@@ -95,9 +95,10 @@ class BatchWriter(context: Context, sessionId: String) {
         runCatching { File(folder, name).writeText(header + rows) }
     }
 
-    fun finish() {
+    fun finish(onDone: (File) -> Unit = {}) {
         handler.post {
             flush()
+            onDone(folder)
             thread.quitSafely()
         }
     }
