@@ -1,9 +1,13 @@
 package com.example.somnia.presentation
 
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.PutDataRequest
+import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
+import java.io.File
 
 class WatchListenerService : WearableListenerService() {
 
@@ -13,6 +17,7 @@ class WatchListenerService : WearableListenerService() {
             when (event.path) {
                 "/somnia/start" -> startRecording(sessionId)
                 "/somnia/stop" -> stopRecording()
+                "/somnia/ack" -> deleteSession(sessionId)
             }
         }
     }
@@ -36,5 +41,17 @@ class WatchListenerService : WearableListenerService() {
                 }
             }
         }
+    }
+
+    private fun deleteSession(sessionId: String) {
+        if (sessionId.isBlank() || sessionId.contains('/') || sessionId.contains("..")) return
+        val context = applicationContext
+        File(context.filesDir, "sessions/$sessionId").deleteRecursively()
+        File(context.cacheDir, "$sessionId.zip").delete()
+        val uri = Uri.Builder()
+            .scheme(PutDataRequest.WEAR_URI_SCHEME)
+            .path("/somnia/session/$sessionId")
+            .build()
+        Wearable.getDataClient(context).deleteDataItems(uri)
     }
 }
