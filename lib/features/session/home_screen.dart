@@ -8,6 +8,7 @@ import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
+import '../../services/upload_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _userService = UserService();
   final _sessionService = SessionService();
   final _watchService = WatchService();
+  final _uploadService = UploadService();
 
   Stream<AppUser?>? _userStream;
   SleepSession? _active;
@@ -35,17 +37,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _load() async {
-    try {
-      final active = await _sessionService.getActiveSession();
-      final latest = await _sessionService.getLatestCompleted();
-      if (!mounted) return;
-      setState(() {
-        _active = active;
-        _latest = latest;
-      });
-    } catch (_) {}
-  }
+ Future<void> _load() async {
+  _uploadService.uploadPending().catchError((_) => 0);
+  try {
+    final active = await _sessionService.getActiveSession();
+    final latest = await _sessionService.getLatestCompleted();
+    if (!mounted) return;
+    setState(() {
+      _active = active;
+      _latest = latest;
+    });
+  } catch (_) {}
+}
 
   Future<void> _open(String route, {Object? arguments}) async {
     await Navigator.pushNamed(context, route, arguments: arguments);
