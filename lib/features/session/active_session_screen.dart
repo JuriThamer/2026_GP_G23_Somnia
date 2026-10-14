@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app_router.dart';
 import '../../models/app_user.dart';
+import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
 import '../../services/user_service.dart';
 import '../../services/watch_service.dart';
@@ -32,6 +33,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   bool _started = false;
   String? _error;
   WatchInfo? _found;
+  SessionAlarm? _alarm;
   bool _checked = false;
 
   @override
@@ -64,6 +66,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       setState(() {
         _sessionId = session.sessionId;
         _start = session.startTime;
+        _alarm = session.alarm;
         _elapsed = DateTime.now().difference(_start!);
         _loading = false;
       });
@@ -121,6 +124,19 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     final hour = d.hour % 12 == 0 ? 12 : d.hour % 12;
     final period = d.hour < 12 ? 'AM' : 'PM';
     return 'Started $hour:${_two(d.minute)} $period · ${d.day} ${months[d.month - 1]}';
+  }
+
+  String _time(DateTime d) {
+    final hour = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final period = d.hour < 12 ? 'AM' : 'PM';
+    return '$hour:${_two(d.minute)} $period';
+  }
+
+  String get _alarmLine {
+    final alarm = _alarm;
+    if (alarm == null) return 'No alarm tonight';
+    if (!alarm.smart) return 'Wake-up ${_time(alarm.wakeAt)} · Smart Alarm off';
+    return 'Wake-up ${_time(alarm.wakeAt)} · Smart Alarm from ${_time(alarm.windowStart)}';
   }
 
   Future<void> _askEnd() async {
@@ -335,11 +351,21 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       style: text.bodySmall,
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _alarmLine,
+                      style: text.bodyMedium!.copyWith(
+                        color: c.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 20),
                     StreamBuilder<AppUser?>(
                       stream: _userStream,
                       builder: (context, snapshot) {
-                        final connected = !_checked ||
+                        final connected =
+                            !_checked ||
                             (snapshot.data?.watch != null && _found != null);
                         final color = connected ? c.success : c.error;
                         return Container(

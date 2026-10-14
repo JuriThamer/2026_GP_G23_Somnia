@@ -15,6 +15,21 @@ class Alarm {
 
   bool get isSet => time.isNotEmpty && days.isNotEmpty;
 
+  DateTime? nextWake(DateTime now) {
+    if (!isSet) return null;
+    final parts = time.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    for (var offset = 0; offset <= 1; offset++) {
+      final day = DateTime(now.year, now.month, now.day + offset, hour, minute);
+      if (!day.isAfter(now)) continue;
+      if (!days.contains(day.weekday - 1)) continue;
+      if (day.difference(now) > const Duration(hours: 24)) continue;
+      return day;
+    }
+    return null;
+  }
+
   factory Alarm.fromMap(Map<String, dynamic> data) {
     return Alarm(
       smart: data['smart'] == true,

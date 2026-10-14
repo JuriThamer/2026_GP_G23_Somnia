@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import '../models/sleep_session.dart';
+
 class WatchInfo {
   final String id;
   final String name;
@@ -12,8 +14,9 @@ class WatchService {
 
   Future<WatchInfo?> findWatch() async {
     try {
-      final result =
-          await _channel.invokeMapMethod<String, dynamic>('findWatch');
+      final result = await _channel.invokeMapMethod<String, dynamic>(
+        'findWatch',
+      );
       if (result == null) return null;
       return WatchInfo(
         id: result['id'] as String? ?? '',
@@ -26,18 +29,21 @@ class WatchService {
 
   Future<bool> _send(String path, String data) async {
     try {
-      final ok = await _channel.invokeMethod<bool>(
-        'send',
-        {'path': path, 'data': data},
-      );
+      final ok = await _channel.invokeMethod<bool>('send', {
+        'path': path,
+        'data': data,
+      });
       return ok ?? false;
     } catch (_) {
       return false;
     }
   }
 
-  Future<bool> startRecording(String sessionId) {
-    return _send('/somnia/start', sessionId);
+  Future<bool> startRecording(String sessionId, {SessionAlarm? alarm}) {
+    return _send(
+      '/somnia/start',
+      alarm == null ? sessionId : alarm.toMessage(sessionId),
+    );
   }
 
   Future<bool> stopRecording(String sessionId) {

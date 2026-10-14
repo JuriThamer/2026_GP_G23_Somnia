@@ -106,6 +106,45 @@ class Questionnaire {
   }
 }
 
+class SessionAlarm {
+  final DateTime wakeAt;
+  final int window;
+  final bool smart;
+  final int repeats;
+
+  const SessionAlarm({
+    required this.wakeAt,
+    required this.window,
+    required this.smart,
+    required this.repeats,
+  });
+
+  DateTime get windowStart =>
+      smart ? wakeAt.subtract(Duration(minutes: window)) : wakeAt;
+
+  String toMessage(String sessionId) {
+    return '$sessionId|${wakeAt.millisecondsSinceEpoch}|$window|${smart ? 1 : 0}|$repeats';
+  }
+
+  factory SessionAlarm.fromMap(Map<String, dynamic> data) {
+    return SessionAlarm(
+      wakeAt: (data['wakeAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      window: (data['window'] as num? ?? 0).toInt(),
+      smart: data['smart'] == true,
+      repeats: (data['repeats'] as num? ?? 0).toInt(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'wakeAt': Timestamp.fromDate(wakeAt),
+      'window': window,
+      'smart': smart,
+      'repeats': repeats,
+    };
+  }
+}
+
 class SleepSession {
   final String sessionId;
   final String status;
@@ -114,6 +153,7 @@ class SleepSession {
   final List<String> rawDataPaths;
   final SleepSummary? summary;
   final Questionnaire? questionnaire;
+  final SessionAlarm? alarm;
   final String? alarmTrigger;
   final String? modelVersion;
 
@@ -125,6 +165,7 @@ class SleepSession {
     this.rawDataPaths = const [],
     this.summary,
     this.questionnaire,
+    this.alarm,
     this.alarmTrigger,
     this.modelVersion,
   });
@@ -149,6 +190,9 @@ class SleepSession {
           : Questionnaire.fromMap(
               Map<String, dynamic>.from(data['questionnaire']),
             ),
+      alarm: data['alarm'] == null
+          ? null
+          : SessionAlarm.fromMap(Map<String, dynamic>.from(data['alarm'])),
       alarmTrigger: data['alarmTrigger'],
       modelVersion: data['modelVersion'],
     );
@@ -162,6 +206,7 @@ class SleepSession {
       'rawDataPaths': rawDataPaths,
       'summary': summary?.toMap(),
       'questionnaire': questionnaire?.toMap(),
+      'alarm': alarm?.toMap(),
       'alarmTrigger': alarmTrigger,
       'modelVersion': modelVersion,
     };

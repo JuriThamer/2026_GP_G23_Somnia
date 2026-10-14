@@ -14,11 +14,12 @@ class SessionService {
         .collection('sleepSessions');
   }
 
-  Future<String> startSession() async {
+  Future<String> startSession({SessionAlarm? alarm}) async {
     final doc = await _sessions.add({
       'status': 'active',
       'startTime': FieldValue.serverTimestamp(),
       'rawDataPaths': <String>[],
+      'alarm': alarm?.toMap(),
     });
     return doc.id;
   }
@@ -26,7 +27,8 @@ class SessionService {
   Future<void> endSession(String sessionId) async {
     await _sessions.doc(sessionId).update({
       'status': 'processing',
-      'endTime': Timestamp.now(),    });
+      'endTime': Timestamp.now(),
+    });
   }
 
   Future<void> addRawDataPath(String sessionId, String path) async {

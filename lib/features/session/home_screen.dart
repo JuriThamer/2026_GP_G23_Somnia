@@ -105,8 +105,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() => _starting = true);
     try {
-      final id = await _sessionService.startSession();
-      final sent = await _watchService.startRecording(id);
+      final user = await _userService.getUser();
+      final settings = user?.alarm ?? const Alarm();
+      final wakeAt = settings.nextWake(DateTime.now());
+      final alarm = wakeAt == null
+          ? null
+          : SessionAlarm(
+              wakeAt: wakeAt,
+              window: settings.window,
+              smart: settings.smart,
+              repeats: settings.repeats,
+            );
+      final id = await _sessionService.startSession(alarm: alarm);
+      final sent = await _watchService.startRecording(id, alarm: alarm);
       if (!mounted) return;
       setState(() => _starting = false);
       if (!sent) {
