@@ -1,3 +1,4 @@
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -16,22 +17,15 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final UserService _userService = UserService();
-
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _currentPasswordController =
-  TextEditingController();
-  final TextEditingController _newPasswordController =
-  TextEditingController();
-  final TextEditingController _confirmPasswordController =
-  TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
-  String? _error;
+  bool _sendingResetEmail = false;
 
+  String _email = '';
   String _originalName = '';
-  String _originalEmail = '';
+  String? _error;
 
   @override
   void initState() {
@@ -40,144 +34,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _loadUser() async {
-    final user = await _userService.getUser();
+    try {
+      final user = await _userService.getUser();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (user != null) {
-      _nameController.text = user.name;
-      _emailController.text = user.email;
+      if (user != null) {
+        _nameController.text = user.name;
+        _originalName = user.name;
+        _email = user.email;
+      }
+    } catch (e) {
+      debugPrint('Load profile error: $e');
 
-      _originalName = user.name;
-      _originalEmail = user.email;
+      if (!mounted) return;
+      _error = 'Could not load your profile.';
     }
 
-    setState(() {
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final currentPassword = _currentPasswordController.text;
-    final newPassword = _newPasswordController.text;
-    final confirmPassword = _confirmPasswordController.text;
+
+    if (name.isEmpty) {
+      setState(() => _error = 'Enter your name.');
+      return;
+    }
 
     setState(() {
       _error = null;
-    });
-
-    if (name.isEmpty) {
-      setState(() {
-        _error = 'Enter your name.';
-      });
-      return;
-    }
-
-    if (email.isEmpty) {
-      setState(() {
-        _error = 'Enter your email.';
-      });
-      return;
-    }
-
-    final emailChanged =
-        email.toLowerCase() != _originalEmail.toLowerCase();
-
-    final passwordChanged = newPassword.isNotEmpty;
-
-    if (emailChanged || passwordChanged) {
-      if (currentPassword.isEmpty) {
-        setState(() {
-          _error =
-          'Enter your current password to change your email or password.';
-        });
-        return;
-      }
-    }
-
-    if (passwordChanged) {
-      if (newPassword.length < 6) {
-        setState(() {
-          _error = 'New password must be at least 6 characters.';
-        });
-        return;
-      }
-
-      if (newPassword != confirmPassword) {
-        setState(() {
-          _error = 'New passwords do not match.';
-        });
-        return;
-      }
-    }
-
-    setState(() {
       _saving = true;
     });
 
     try {
-      // Update name if changed.
       if (name != _originalName) {
         await _userService.updateName(name);
       }
 
-      // Update email if changed.
-      if (emailChanged) {
-        await _userService.updateEmail(
-          currentPassword: currentPassword,
-          newEmail: email,
-        );
-      }
-
-      // Update password if changed.
-      if (passwordChanged) {
-        await _userService.updatePassword(
-          currentPassword: currentPassword,
-          newPassword: newPassword,
-        );
-      }
-
       if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully.'),
+        ),
+      );
 
       Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
+    } catch (e) {
+      debugPrint('Save profile error: $e');
 
-      String message;
-
-      switch (e.code) {
-        case 'wrong-password':
-        case 'invalid-credential':
-          message = 'Current password is incorrect.';
-          break;
-
-        case 'email-already-in-use':
-          message = 'This email is already in use.';
-          break;
-
-        case 'invalid-email':
-          message = 'Please enter a valid email address.';
-          break;
-
-        case 'weak-password':
-          message = 'New password is too weak.';
-          break;
-
-        case 'requires-recent-login':
-          message = 'Please sign in again and try again.';
-          break;
-
-        default:
-          message = e.message ?? 'Could not update your profile.';
-      }
-
-      setState(() {
-        _saving = false;
-        _error = message;
-      });
-    } catch (_) {
       if (!mounted) return;
 
       setState(() {
@@ -187,13 +95,105 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _changePassword() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Change Password'),
+        content: const Text(
+          'A password reset link will be sent to your registered '
+              'email address. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Send Email'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _sendingResetEmail = true);
+
+    try {
+      await _userService.sendPasswordResetToCurrentUser();
+
+      debugPrint('Password reset email request completed.');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'If an account exists for this email, a password reset '
+                'email should arrive at $_email. Check your inbox and spam.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Password reset error code: ${e.code}');
+      debugPrint('Password reset error message: ${e.message}');
+
+      if (!mounted) return;
+
+      String message;
+
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No signed-in account with an email was found.';
+          break;
+        case 'invalid-email':
+          message = 'The account email address is invalid.';
+          break;
+        case 'too-many-requests':
+          message = 'Too many attempts. Please try again later.';
+          break;
+        case 'network-request-failed':
+          message = 'Network error. Check your internet connection.';
+          break;
+        case 'operation-not-allowed':
+          message = 'Password reset is not enabled in Firebase.';
+          break;
+        default:
+          message = 'Could not send the reset email (${e.code}).';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Unexpected password reset error: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unexpected error. Check the terminal for details.',
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _sendingResetEmail = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -205,9 +205,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_loading) {
       return Scaffold(
         body: Container(
-          decoration: BoxDecoration(
-            gradient: colors.gradient,
-          ),
+          decoration: BoxDecoration(gradient: colors.gradient),
           child: const Center(
             child: CircularProgressIndicator(),
           ),
@@ -217,9 +215,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: colors.gradient,
-        ),
+        decoration: BoxDecoration(gradient: colors.gradient),
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -231,7 +227,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     shape: const CircleBorder(),
                     child: InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: _saving
+                      onTap: _saving || _sendingResetEmail
                           ? null
                           : () => Navigator.pop(context),
                       child: SizedBox(
@@ -253,17 +249,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Update your account information',
                 style: text.bodySmall,
               ),
-
               const SizedBox(height: 28),
-
-              // Personal information
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,76 +263,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       'PERSONAL INFORMATION',
                       style: text.labelSmall,
                     ),
-
                     const SizedBox(height: 18),
-
                     AppTextField(
                       label: 'Name',
                       hint: 'Enter your name',
                       controller: _nameController,
                     ),
-
                     const SizedBox(height: 16),
-
-                    AppTextField(
-                      label: 'Email',
-                      hint: 'Enter your email',
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
+                    Text(
+                      'Email',
+                      style: text.labelMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _email,
+                      style: text.bodyLarge,
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Password
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'CHANGE PASSWORD',
+                      'SECURITY',
                       style: text.labelSmall,
                     ),
-
                     const SizedBox(height: 8),
-
                     Text(
-                      'Leave the new password fields empty if you do not want to change your password.',
+                      'Change your password securely using a link sent '
+                          'to your registered email address.',
                       style: text.bodySmall,
                     ),
-
                     const SizedBox(height: 18),
-
-                    AppTextField(
-                      label: 'Current Password',
-                      hint: 'Enter your current password',
-                      controller: _currentPasswordController,
-                      obscureText: true,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    AppTextField(
-                      label: 'New Password',
-                      hint: 'Enter your new password',
-                      controller: _newPasswordController,
-                      obscureText: true,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    AppTextField(
-                      label: 'Confirm New Password',
-                      hint: 'Confirm your new password',
-                      controller: _confirmPasswordController,
-                      obscureText: true,
+                    AppButton(
+                      label: 'Change Password',
+                      loading: _sendingResetEmail,
+                      onPressed: _sendingResetEmail || _saving
+                          ? null
+                          : _changePassword,
                     ),
                   ],
                 ),
               ),
-
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Text(
@@ -351,13 +317,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
               ],
-
               const SizedBox(height: 24),
-
               AppButton(
                 label: 'Save changes',
                 loading: _saving,
-                onPressed: _save,
+                onPressed: _saving || _sendingResetEmail
+                    ? null
+                    : _save,
               ),
             ],
           ),

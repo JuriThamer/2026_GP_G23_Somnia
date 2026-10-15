@@ -126,4 +126,20 @@ class UserService {
 
     await user.updatePassword(newPassword);
   }
+
+
+  Future<void> sendPasswordResetToCurrentUser() async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'No signed-in user with an email was found.',
+      );
+    }
+
+    await _auth.sendPasswordResetEmail(email: email);
+  }
+
 }
