@@ -17,8 +17,8 @@ class WatchListenerService : WearableListenerService() {
         Handler(Looper.getMainLooper()).post {
             when (event.path) {
                 "/somnia/start" -> {
-                    scheduleAlarm(parts)
                     startRecording(sessionId)
+                    scheduleAlarm(parts)
                 }
                 "/somnia/stop" -> {
                     AlarmScheduler.cancel(applicationContext)
@@ -32,12 +32,21 @@ class WatchListenerService : WearableListenerService() {
 
     private fun scheduleAlarm(parts: List<String>) {
         val context = applicationContext
+        val reader = SensorReader.shared(context)
         val wakeAt = parts.getOrNull(1)?.toLongOrNull()
+        val window = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        val smart = parts.getOrNull(3) == "1"
         val repeats = parts.getOrNull(4)?.toIntOrNull() ?: 0
         if (wakeAt == null) {
             AlarmScheduler.cancel(context)
+            reader.clearWindow()
+            return
+        }
+        AlarmScheduler.schedule(context, wakeAt, repeats)
+        if (smart && window > 0) {
+            reader.setWindow(wakeAt - window * 60 * 1000L, wakeAt)
         } else {
-            AlarmScheduler.schedule(context, wakeAt, repeats)
+            reader.clearWindow()
         }
     }
 

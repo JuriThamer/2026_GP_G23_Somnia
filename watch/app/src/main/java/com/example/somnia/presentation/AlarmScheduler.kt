@@ -48,9 +48,8 @@ object AlarmScheduler {
     }
 
     private fun ringIntent(context: Context): PendingIntent {
-        val intent = Intent(context, AlarmActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return PendingIntent.getActivity(
+        val intent = Intent(context, AlarmReceiver::class.java)
+        return PendingIntent.getBroadcast(
             context,
             REQUEST_RING,
             intent,

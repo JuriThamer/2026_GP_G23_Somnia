@@ -1,13 +1,6 @@
 package com.example.somnia.presentation
 
-import android.content.Context
-import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,31 +28,11 @@ import java.time.format.DateTimeFormatter
 
 class AlarmActivity : ComponentActivity() {
 
-    companion object {
-        private const val RING_MILLIS = 60 * 1000L
-    }
-
-    private val handler = Handler(Looper.getMainLooper())
-    private var handled = false
-    private lateinit var vibrator: Vibrator
-
-    private val timeout = Runnable {
-        if (!handled) {
-            handled = true
-            AlarmScheduler.snooze(this)
-            finish()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        vibrator = findVibrator()
-        vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 600), 0))
-        handler.postDelayed(timeout, RING_MILLIS)
 
         val now = LocalTime.now().format(DateTimeFormatter.ofPattern("h:mm"))
         setContent {
@@ -69,26 +42,9 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    private fun findVibrator(): Vibrator {
-        return if (Build.VERSION.SDK_INT >= 31) {
-            getSystemService(VibratorManager::class.java).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-    }
-
     private fun dismiss() {
-        if (handled) return
-        handled = true
-        AlarmScheduler.cancel(this)
+        Ringer.dismiss(this)
         finish()
-    }
-
-    override fun onDestroy() {
-        handler.removeCallbacks(timeout)
-        vibrator.cancel()
-        super.onDestroy()
     }
 }
 

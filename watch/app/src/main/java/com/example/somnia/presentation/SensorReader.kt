@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,6 +33,10 @@ class SensorReader private constructor(private val context: Context) {
 
     companion object {
         private const val FLUSH_MILLIS = 60 * 1000L
+        private const val WINDOW_FLUSH_MILLIS = 10 * 1000L
+        private const val EPOCH_MILLIS = 30 * 1000L
+        private const val LATE_MILLIS = 10 * 1000L
+        private const val TICK_MILLIS = 5 * 1000L
         private const val STOP_DELAY_MILLIS = 3 * 1000L
 
         @Volatile
@@ -66,6 +71,22 @@ class SensorReader private constructor(private val context: Context) {
 
     @Volatile
     private var lastFlush = 0L
+
+    private class Epoch {
+        val heart = StringBuilder()
+        val motion = StringBuilder()
+        val temperature = StringBuilder()
+    }
+
+    private val epochLock = Any()
+    private val epochs = java.util.TreeMap<Int, Epoch>()
+    private var nextEpoch = 0
+
+    @Volatile
+    private var windowStart = 0L
+
+    @Volatile
+    private var windowEnd = 0L
 
     private val wakeLock by lazy {
         val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -122,6 +143,7 @@ class SensorReader private constructor(private val context: Context) {
                     val status = point.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS) ?: 0
                     val ibi = point.getValue(ValueKey.HeartRateSet.IBI_LIST) ?: emptyList()
                     writer?.addHeart(point.timestamp, bpm, status, ibi.toList())
+                    addEpoch(point.timestamp) { it.heart.append("${point.timestamp},$bpm,$status,${ibi.joinToString(";")}\n") }
                     heartCount.incrementAndGet()
                     if (bpm > 0) latest = bpm
                 }
@@ -130,6 +152,7 @@ class SensorReader private constructor(private val context: Context) {
             val value = latest
             update { copy(heartRate = value ?: heartRate, heartCount = count) }
             flushIfDue()
+            sendDueEpochs()
         }
 
         override fun onFlushCompleted() {}
@@ -148,6 +171,7 @@ class SensorReader private constructor(private val context: Context) {
                     val ambient = point.getValue(ValueKey.SkinTemperatureSet.AMBIENT_TEMPERATURE) ?: 0f
                     val status = point.getValue(ValueKey.SkinTemperatureSet.STATUS) ?: 0
                     writer?.addTemperature(point.timestamp, skin, ambient, status)
+                    addEpoch(point.timestamp) { it.temperature.append("${point.timestamp},$skin,$ambient,$status\n") }
                     temperatureCount.incrementAndGet()
                     if (skin > 0f) latest = skin
                 }
@@ -156,6 +180,7 @@ class SensorReader private constructor(private val context: Context) {
             val value = latest
             update { copy(skinTemperature = value ?: skinTemperature, temperatureCount = count) }
             flushIfDue()
+            sendDueEpochs()
         }
 
         override fun onFlushCompleted() {}
@@ -173,12 +198,14 @@ class SensorReader private constructor(private val context: Context) {
                     val y = point.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y) ?: 0
                     val z = point.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z) ?: 0
                     writer?.addMotion(point.timestamp, x, y, z)
+                    addEpoch(point.timestamp) { it.motion.append("${point.timestamp},$x,$y,$z\n") }
                     motionCount.incrementAndGet()
                 }
             }
             val count = motionCount.get()
             update { copy(motionCount = count) }
             flushIfDue()
+            sendDueEpochs()
         }
 
         override fun onFlushCompleted() {}
@@ -258,9 +285,77 @@ class SensorReader private constructor(private val context: Context) {
         }
     }
 
+    private val tick = object : Runnable {
+        override fun run() {
+            val now = System.currentTimeMillis()
+            if (windowEnd == 0L || now >= windowEnd + LATE_MILLIS + EPOCH_MILLIS) return
+            if (now < windowStart) {
+                handler.postDelayed(this, minOf(windowStart - now, FLUSH_MILLIS))
+                return
+            }
+            flushIfDue()
+            sendDueEpochs()
+            handler.postDelayed(this, TICK_MILLIS)
+        }
+    }
+
+    fun setWindow(start: Long, end: Long) {
+        synchronized(epochLock) {
+            windowStart = start
+            windowEnd = end
+            epochs.clear()
+            nextEpoch = 0
+        }
+        Log.d("SomniaEpoch", "window start=$start end=$end")
+        handler.removeCallbacks(tick)
+        if (end > 0L) handler.post(tick)
+    }
+
+    fun clearWindow() {
+        setWindow(0L, 0L)
+    }
+
+    private fun fastFlush(now: Long): Boolean {
+        return windowEnd > 0L && now >= windowStart && now < windowEnd + LATE_MILLIS
+    }
+
+    private fun addEpoch(timestamp: Long, write: (Epoch) -> Unit) {
+        synchronized(epochLock) {
+            if (windowEnd == 0L || timestamp < windowStart || timestamp >= windowEnd) return
+            val index = ((timestamp - windowStart) / EPOCH_MILLIS).toInt()
+            if (index < nextEpoch) return
+            write(epochs.getOrPut(index) { Epoch() })
+        }
+    }
+
+    private fun sendDueEpochs() {
+        val id = sessionId ?: return
+        val now = System.currentTimeMillis()
+        val ready = mutableListOf<Triple<Int, Long, String>>()
+        synchronized(epochLock) {
+            if (windowEnd == 0L) return
+            while (true) {
+                val startedAt = windowStart + nextEpoch * EPOCH_MILLIS
+                val endsAt = startedAt + EPOCH_MILLIS
+                if (endsAt > windowEnd || now < endsAt + LATE_MILLIS) break
+                val epoch = epochs.remove(nextEpoch)
+                if (epoch != null) {
+                    val body = "#heart\n${epoch.heart}#motion\n${epoch.motion}#temp\n${epoch.temperature}"
+                    ready.add(Triple(nextEpoch, startedAt, body))
+                }
+                nextEpoch += 1
+            }
+        }
+        for ((index, startedAt, body) in ready) {
+            Log.d("SomniaEpoch", "ready index=$index bytes=${body.length}")
+            EpochSender.send(context, id, index, startedAt, body)
+        }
+    }
+
     private fun flushIfDue() {
         val now = System.currentTimeMillis()
-        if (now - lastFlush < FLUSH_MILLIS) return
+        val interval = if (fastFlush(now)) WINDOW_FLUSH_MILLIS else FLUSH_MILLIS
+        if (now - lastFlush < interval) return
         lastFlush = now
         flushTrackers()
     }
@@ -297,6 +392,7 @@ class SensorReader private constructor(private val context: Context) {
     }
 
     fun stop(onFinished: (File?) -> Unit = {}) {
+        clearWindow()
         pendingStart = false
         pendingSession = null
         if (!state.recording || stopping) {

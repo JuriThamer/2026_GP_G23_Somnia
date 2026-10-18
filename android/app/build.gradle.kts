@@ -6,17 +6,17 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
-
+ 
 android {
     namespace = "com.example.somnia"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
-
+ 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
+ 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.somnia"
@@ -31,7 +31,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-
+ 
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
@@ -40,17 +40,21 @@ android {
         }
     }
 }
-
+ 
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
-
+ 
 flutter {
     source = "../.."
 }
-
+ 
 dependencies {
     implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-auth")
 }
+ 
