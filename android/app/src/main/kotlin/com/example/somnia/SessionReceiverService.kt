@@ -13,6 +13,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import java.io.File
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -73,20 +74,38 @@ class SessionReceiverService : WearableListenerService() {
             .collection("sleepSessions")
             .document(sessionId)
 
-        session.collection("epochs")
-            .document(index.toString().padStart(4, '0'))
-            .set(
-                mapOf(
-                    "index" to index,
-                    "startedAt" to Timestamp(Date(startedAt)),
-                    "receivedAt" to FieldValue.serverTimestamp(),
-                    "heart" to section(body, "heart"),
-                    "motion" to section(body, "motion"),
-                    "temp" to section(body, "temp"),
-                ),
+        val saved = runCatching {
+            Tasks.await(
+                session.collection("epochs")
+                    .document(index.toString().padStart(4, '0'))
+                    .set(
+                        mapOf(
+                            "index" to index,
+                            "startedAt" to Timestamp(Date(startedAt)),
+                            "receivedAt" to FieldValue.serverTimestamp(),
+                            "heart" to section(body, "heart"),
+                            "motion" to section(body, "motion"),
+                            "temp" to section(body, "temp"),
+                        ),
+                    ),
+                10,
+                TimeUnit.SECONDS,
             )
-            .addOnSuccessListener { Log.d("SomniaEpoch", "saved $sessionId index=$index") }
-            .addOnFailureListener { Log.d("SomniaEpoch", "save failed index=$index ${it.message}") }
+        }
+        Log.d("SomniaEpoch", "saved $sessionId index=$index ok=${saved.isSuccess} ${saved.exceptionOrNull()?.message ?: ""}")
+
+        if (saved.isSuccess) {
+            val checked = runCatching {
+                Tasks.await(
+                    FirebaseFunctions.getInstance("me-central1")
+                        .getHttpsCallable("check_epoch")
+                        .call(mapOf("sessionId" to sessionId, "index" to index)),
+                    30,
+                    TimeUnit.SECONDS,
+                ).getData()
+            }
+            Log.d("SomniaEpoch", "checked index=$index ok=${checked.isSuccess} result=${checked.getOrNull()} ${checked.exceptionOrNull()?.message ?: ""}")
+        }
 
         val snapshot = Tasks.await(session.get(), 10, TimeUnit.SECONDS)
         Log.d("SomniaEpoch", "session exists=${snapshot.exists()} wakeNow=${snapshot.getBoolean("wakeNow")} trigger=${snapshot.getString("alarmTrigger")}")

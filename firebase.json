@@ -1,1 +1,35 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"somnia-97440","appId":"1:1043583016592:android:d5ae5a41edeb2940fd8215","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"somnia-97440","configurations":{"android":"1:1043583016592:android:d5ae5a41edeb2940fd8215"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "somnia-97440",
+          "appId": "1:1043583016592:android:d5ae5a41edeb2940fd8215",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "somnia-97440",
+          "configurations": {
+            "android": "1:1043583016592:android:d5ae5a41edeb2940fd8215"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "python312",
+      "ignore": [
+        "venv",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
