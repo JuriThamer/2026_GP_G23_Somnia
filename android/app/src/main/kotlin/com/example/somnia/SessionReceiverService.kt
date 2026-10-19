@@ -27,8 +27,10 @@ class SessionReceiverService : WearableListenerService() {
             if (!path.startsWith("/somnia/session/")) continue
             val sessionId = path.removePrefix("/somnia/session/")
             val asset = DataMapItem.fromDataItem(item).dataMap.getAsset("data") ?: continue
-            val saved = runCatching { save(sessionId, asset) }.isSuccess
-            if (saved) acknowledge(item.uri.host, sessionId)
+            Log.d("SomniaFile", "received $sessionId")
+            val result = runCatching { save(sessionId, asset) }
+            Log.d("SomniaFile", "saved $sessionId ok=${result.isSuccess} ${result.exceptionOrNull()?.message ?: ""}")
+            if (result.isSuccess) acknowledge(item.uri.host, sessionId)
         }
     }
 
@@ -41,9 +43,11 @@ class SessionReceiverService : WearableListenerService() {
     private fun save(sessionId: String, asset: Asset) {
         val response = Tasks.await(Wearable.getDataClient(this).getFdForAsset(asset))
         val folder = File(filesDir, "sessions").apply { mkdirs() }
+        val file = File(folder, "$sessionId.zip")
         response.inputStream.use { input ->
-            File(folder, "$sessionId.zip").outputStream().use { output -> input.copyTo(output) }
+            file.outputStream().use { output -> input.copyTo(output) }
         }
+        Log.d("SomniaFile", "wrote $sessionId bytes=${file.length()}")
     }
 
     private fun acknowledge(nodeId: String?, sessionId: String) {

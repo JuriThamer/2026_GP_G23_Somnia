@@ -9,13 +9,17 @@ object AlarmScheduler {
 
     private const val PREFS = "somnia_alarm"
     private const val KEY_REPEATS = "repeats"
+    private const val KEY_WAKE = "wakeAt"
     private const val REQUEST_RING = 7001
     private const val REQUEST_SHOW = 7002
     private const val SNOOZE_MILLIS = 5 * 60 * 1000L
 
     fun schedule(context: Context, wakeAt: Long, repeats: Int) {
         if (wakeAt <= System.currentTimeMillis()) return
-        prefs(context).edit().putInt(KEY_REPEATS, repeats).apply()
+        prefs(context).edit()
+            .putInt(KEY_REPEATS, repeats)
+            .putLong(KEY_WAKE, wakeAt)
+            .apply()
         set(context, wakeAt)
     }
 
@@ -24,10 +28,17 @@ object AlarmScheduler {
     }
 
     fun snooze(context: Context): Boolean {
+        val now = System.currentTimeMillis()
         val left = prefs(context).getInt(KEY_REPEATS, 0)
-        if (left <= 0) return false
-        prefs(context).edit().putInt(KEY_REPEATS, left - 1).apply()
-        set(context, System.currentTimeMillis() + SNOOZE_MILLIS)
+        if (left > 0) {
+            prefs(context).edit().putInt(KEY_REPEATS, left - 1).apply()
+            set(context, now + SNOOZE_MILLIS)
+            return true
+        }
+        val wakeAt = prefs(context).getLong(KEY_WAKE, 0L)
+        prefs(context).edit().remove(KEY_WAKE).apply()
+        if (wakeAt <= now) return false
+        set(context, wakeAt)
         return true
     }
 

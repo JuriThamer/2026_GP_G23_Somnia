@@ -19,6 +19,7 @@ class WatchListenerService : WearableListenerService() {
                 "/somnia/start" -> {
                     startRecording(sessionId)
                     scheduleAlarm(parts)
+                    FileSender.sendPending(applicationContext, sessionId)
                 }
                 "/somnia/stop" -> {
                     AlarmScheduler.cancel(applicationContext)
@@ -85,6 +86,7 @@ class WatchListenerService : WearableListenerService() {
             } else {
                 FileSender.send(context, folder) {
                     RecordingService.stop(context)
+                    FileSender.sendPending(context, folder.name)
                 }
             }
         }

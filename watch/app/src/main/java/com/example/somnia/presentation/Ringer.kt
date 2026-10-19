@@ -110,7 +110,7 @@ object Ringer {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setContentIntent(open)
             .addAction(0, "Stop", stop)
-            .setOngoing(true)
+            .setDeleteIntent(stop)
             .build()
 
         manager.notify(NOTIFICATION_ID, notification)
