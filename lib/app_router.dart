@@ -7,6 +7,8 @@ import 'features/auth/welcome_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/forgot_password_screen.dart';
+import 'features/auth/start_screen.dart';
+import 'features/auth/verify_email_screen.dart';
 import 'features/session/home_screen.dart';
 import 'features/session/watch_screen.dart';
 import 'features/session/active_session_screen.dart';
@@ -20,6 +22,8 @@ import 'features/settings/sounds_screen.dart';
 
 class AppRoutes {
   static const dev = '/dev';
+  static const start = '/';
+  static const verifyEmail = '/verify-email';
   static const welcome = '/welcome';
   static const signIn = '/signin';
   static const signUp = '/signup';
@@ -40,6 +44,7 @@ class AppRoutes {
     signIn,
     signUp,
     forgotPassword,
+    verifyEmail,
     home,
     watch,
     activeSession,
@@ -57,6 +62,8 @@ class AppRouter {
   static Map<String, WidgetBuilder> get routes {
     return {
       AppRoutes.dev: (_) => const DevMenuScreen(),
+      AppRoutes.start: (_) => const StartScreen(),
+      AppRoutes.verifyEmail: (_) => const VerifyEmailScreen(),
       AppRoutes.welcome: (_) => const WelcomeScreen(),
       AppRoutes.signIn: (_) => const SignInScreen(),
       AppRoutes.signUp: (_) => const SignUpScreen(),

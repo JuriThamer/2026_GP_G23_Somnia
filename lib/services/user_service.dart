@@ -9,7 +9,9 @@ class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   String? get uid => _auth.currentUser?.uid;
+  String? get email => _auth.currentUser?.email;
   bool get isSignedIn => _auth.currentUser != null;
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
   Stream<User?> get authChanges => _auth.authStateChanges();
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) {
@@ -31,7 +33,30 @@ class UserService {
       email: email.trim(),
     );
     await _userDoc(user.uid).set(user.toMap());
+    try {
+      await credential.user!.sendEmailVerification();
+    } catch (_) {}
     return user;
+  }
+
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'No signed-in user found.',
+      );
+    }
+
+    await user.sendEmailVerification();
+  }
+
+  Future<bool> reloadEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
   }
 
   Future<void> signIn({required String email, required String password}) async {
@@ -127,7 +152,6 @@ class UserService {
     await user.updatePassword(newPassword);
   }
 
-
   Future<void> sendPasswordResetToCurrentUser() async {
     final user = _auth.currentUser;
     final email = user?.email;
@@ -141,5 +165,4 @@ class UserService {
 
     await _auth.sendPasswordResetEmail(email: email);
   }
-
 }
