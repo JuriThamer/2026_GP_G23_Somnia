@@ -24,19 +24,21 @@ class SessionService {
   }
 
   Future<void> endSession(String sessionId) async {
-    await _sessions.doc(sessionId).update({
-      'endTime': Timestamp.now(),
-    });
+    await _sessions.doc(sessionId).update({'endTime': Timestamp.now()});
   }
 
   Future<void> markUploaded(String sessionId, String path) async {
-    await _sessions.doc(sessionId).update({
+    final session = _sessions.doc(sessionId);
+    final epochs = await session.collection('wakeWindowEpochs').get();
+    final batch = _db.batch();
+    batch.update(session, {
       'status': 'processing',
-      'rawDataPath': {
-        'path': path,
-        'uploadedAt': FieldValue.serverTimestamp(),
-      },
+      'rawDataPath': {'path': path, 'uploadedAt': FieldValue.serverTimestamp()},
     });
+    for (final epoch in epochs.docs) {
+      batch.delete(epoch.reference);
+    }
+    await batch.commit();
   }
 
   Future<bool> sessionExists(String sessionId) async {
@@ -51,9 +53,7 @@ class SessionService {
   }
 
   Future<SleepSession?> getActiveSession() async {
-    final result = await _sessions
-        .where('status', isEqualTo: 'active')
-        .get();
+    final result = await _sessions.where('status', isEqualTo: 'active').get();
     for (final doc in result.docs) {
       final session = SleepSession.fromMap(doc.id, doc.data());
       if (session.isActive) return session;
