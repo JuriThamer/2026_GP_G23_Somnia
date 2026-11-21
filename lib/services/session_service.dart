@@ -85,12 +85,7 @@ class SessionService {
         );
   }
 
-  Future<void> saveQuestionnaire(
-    String sessionId,
-    Questionnaire questionnaire,
-  ) async {
-    await _sessions.doc(sessionId).update({
-      'questionnaire': questionnaire.toMap(),
-    });
+  Future<void> saveRestReview(String sessionId, RestReview restReview) async {
+    await _sessions.doc(sessionId).update({'restReview': restReview.toMap()});
   }
 }
