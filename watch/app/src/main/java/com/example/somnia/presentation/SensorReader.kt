@@ -14,6 +14,7 @@ import com.samsung.android.service.health.tracking.HealthTrackerException
 import com.samsung.android.service.health.tracking.HealthTrackingService
 import com.samsung.android.service.health.tracking.data.DataPoint
 import com.samsung.android.service.health.tracking.data.HealthTrackerType
+import com.samsung.android.service.health.tracking.data.PpgType
 import com.samsung.android.service.health.tracking.data.ValueKey
 import java.util.concurrent.atomic.AtomicInteger
 import java.io.File
@@ -65,6 +66,7 @@ class SensorReader private constructor(private val context: Context) {
     private var heartTracker: HealthTracker? = null
     private var temperatureTracker: HealthTracker? = null
     private var motionTracker: HealthTracker? = null
+    private var ppgTracker: HealthTracker? = null
     private var pendingStart = false
     private var pendingSession: String? = null
     private var stopping = false
@@ -76,6 +78,7 @@ class SensorReader private constructor(private val context: Context) {
         val heart = StringBuilder()
         val motion = StringBuilder()
         val temperature = StringBuilder()
+        val ppg = StringBuilder()
     }
 
     private val epochLock = Any()
@@ -141,9 +144,8 @@ class SensorReader private constructor(private val context: Context) {
                 runCatching {
                     val bpm = point.getValue(ValueKey.HeartRateSet.HEART_RATE) ?: 0
                     val status = point.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS) ?: 0
-                    val ibi = point.getValue(ValueKey.HeartRateSet.IBI_LIST) ?: emptyList()
-                    writer?.addHeart(point.timestamp, bpm, status, ibi.toList())
-                    addEpoch(point.timestamp) { it.heart.append("${point.timestamp},$bpm,$status,${ibi.joinToString(";")}\n") }
+                    writer?.addHeart(point.timestamp, bpm, status)
+                    addEpoch(point.timestamp) { it.heart.append("${point.timestamp},$bpm,$status\n") }
                     heartCount.incrementAndGet()
                     if (bpm > 0) latest = bpm
                 }
@@ -215,6 +217,27 @@ class SensorReader private constructor(private val context: Context) {
         }
     }
 
+    private val ppgListener = object : HealthTracker.TrackerEventListener {
+        override fun onDataReceived(list: List<DataPoint>) {
+            for (point in list) {
+                runCatching {
+                    val green = point.getValue(ValueKey.PpgSet.PPG_GREEN) ?: 0
+                    val status = point.getValue(ValueKey.PpgSet.GREEN_STATUS) ?: 0
+                    writer?.addPpg(point.timestamp, green, status)
+                    addEpoch(point.timestamp) { it.ppg.append("${point.timestamp},$green,$status\n") }
+                }
+            }
+            flushIfDue()
+            sendDueEpochs()
+        }
+
+        override fun onFlushCompleted() {}
+
+        override fun onError(error: HealthTracker.TrackerError) {
+            showMessage(errorText(error))
+        }
+    }
+
     fun connect() {
         if (service != null) return
         val created = HealthTrackingService(connectionListener, context)
@@ -231,6 +254,16 @@ class SensorReader private constructor(private val context: Context) {
         if (!supported.contains(type)) return null
         val tracker = source.getHealthTracker(type)
         handler.post { tracker.setEventListener(listener) }
+        return tracker
+    }
+
+    private fun openPpgTracker(
+        source: HealthTrackingService,
+        supported: List<HealthTrackerType>,
+    ): HealthTracker? {
+        if (!supported.contains(HealthTrackerType.PPG_CONTINUOUS)) return null
+        val tracker = source.getHealthTracker(HealthTrackerType.PPG_CONTINUOUS, setOf(PpgType.GREEN))
+        handler.post { tracker.setEventListener(ppgListener) }
         return tracker
     }
 
@@ -267,6 +300,7 @@ class SensorReader private constructor(private val context: Context) {
             motionTracker = openTracker(
                 source, supported, HealthTrackerType.ACCELEROMETER_CONTINUOUS, motionListener,
             )
+            ppgTracker = openPpgTracker(source, supported)
             update {
                 copy(
                     recording = true,
@@ -340,7 +374,7 @@ class SensorReader private constructor(private val context: Context) {
                 if (endsAt > windowEnd || now < endsAt + LATE_MILLIS) break
                 val epoch = epochs.remove(nextEpoch)
                 if (epoch != null) {
-                    val body = "#heart\n${epoch.heart}#motion\n${epoch.motion}#temp\n${epoch.temperature}"
+                    val body = "#heart\n${epoch.heart}#motion\n${epoch.motion}#temp\n${epoch.temperature}#ppg\n${epoch.ppg}"
                     ready.add(Triple(nextEpoch, startedAt, body))
                 }
                 nextEpoch += 1
@@ -361,7 +395,7 @@ class SensorReader private constructor(private val context: Context) {
     }
 
     private fun flushTrackers() {
-        val trackers = listOf(heartTracker, temperatureTracker, motionTracker)
+        val trackers = listOf(heartTracker, temperatureTracker, motionTracker, ppgTracker)
         handler.post {
             for (tracker in trackers) {
                 runCatching { tracker?.flush() }
@@ -370,10 +404,11 @@ class SensorReader private constructor(private val context: Context) {
     }
 
     private fun closeTrackers() {
-        val trackers = listOf(heartTracker, temperatureTracker, motionTracker)
+        val trackers = listOf(heartTracker, temperatureTracker, motionTracker, ppgTracker)
         heartTracker = null
         temperatureTracker = null
         motionTracker = null
+        ppgTracker = null
         handler.post {
             for (tracker in trackers) {
                 runCatching { tracker?.unsetEventListener() }

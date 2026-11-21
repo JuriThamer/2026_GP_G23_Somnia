@@ -17,6 +17,7 @@ class BatchWriter(context: Context, sessionId: String) {
     private val heart = StringBuilder()
     private val motion = StringBuilder()
     private val temperature = StringBuilder()
+    private val ppg = StringBuilder()
     private var batch = 0
     private var lastWrite = 0L
     private var writeQueued = false
@@ -31,12 +32,20 @@ class BatchWriter(context: Context, sessionId: String) {
         }
     }
 
-    fun addHeart(timestamp: Long, bpm: Int, status: Int, ibi: List<Int>) {
+    fun addHeart(timestamp: Long, bpm: Int, status: Int) {
         synchronized(lock) {
             heart.append(timestamp).append(',')
                 .append(bpm).append(',')
-                .append(status).append(',')
-                .append(ibi.joinToString(";")).append('\n')
+                .append(status).append('\n')
+            writeIfDue()
+        }
+    }
+
+    fun addPpg(timestamp: Long, green: Int, status: Int) {
+        synchronized(lock) {
+            ppg.append(timestamp).append(',')
+                .append(green).append(',')
+                .append(status).append('\n')
             writeIfDue()
         }
     }
@@ -73,22 +82,26 @@ class BatchWriter(context: Context, sessionId: String) {
         val heartRows: String
         val motionRows: String
         val temperatureRows: String
+        val ppgRows: String
         synchronized(lock) {
             heartRows = heart.toString()
             motionRows = motion.toString()
             temperatureRows = temperature.toString()
+            ppgRows = ppg.toString()
             heart.setLength(0)
             motion.setLength(0)
             temperature.setLength(0)
+            ppg.setLength(0)
             writeQueued = false
         }
-        if (heartRows.isEmpty() && motionRows.isEmpty() && temperatureRows.isEmpty()) return
+        if (heartRows.isEmpty() && motionRows.isEmpty() && temperatureRows.isEmpty() && ppgRows.isEmpty()) return
 
         batch += 1
         val number = batch.toString().padStart(3, '0')
-        write("heart_$number.csv", "timestamp,bpm,status,ibi\n", heartRows)
+        write("heart_$number.csv", "timestamp,bpm,status\n", heartRows)
         write("motion_$number.csv", "timestamp,x,y,z\n", motionRows)
         write("temp_$number.csv", "timestamp,skin,ambient,status\n", temperatureRows)
+        write("ppg_$number.csv", "timestamp,green,status\n", ppgRows)
     }
 
     private fun write(name: String, header: String, rows: String) {
