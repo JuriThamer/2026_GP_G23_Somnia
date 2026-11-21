@@ -129,44 +129,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  String _questionnaireSleepQuality(int value) {
-    const options = [
-      'Unknown',
-      'Poor',
-      'Fair',
-      'Good',
-      'Very good',
-    ];
-
-    if (value >= 0 && value < options.length) {
-      return options[value];
-    }
-
-    return '—';
-  }
-
-  String _questionnaireScale(
-      int value,
-      List<String> options,
-      ) {
-    final index = value - 1;
-
-    if (index >= 0 && index < options.length) {
-      return options[index];
-    }
-
-    return '—';
-  }
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: c.gradient,
-        ),
+        decoration: BoxDecoration(gradient: c.gradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -174,33 +143,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               Expanded(
                 child: _loading
-                    ? Center(
-                  child: CircularProgressIndicator(
-                    color: c.primary,
-                  ),
-                )
+                    ? Center(child: CircularProgressIndicator(color: c.primary))
                     : _error != null
-                    ? _ErrorState(
-                  message: _error!,
-                  onRetry: _load,
-                )
+                    ? _ErrorState(message: _error!, onRetry: _load)
                     : _session == null
                     ? const _EmptyState()
                     : RefreshIndicator(
-                  onRefresh: _load,
-                  color: c.primary,
-                  child: _DashboardContent(
-                    session: _session!,
-                    duration: _duration,
-                    date: _date,
-                    time: _time,
-                    stageName: _stageName,
-                    questionnaireSleepQuality:
-                    _questionnaireSleepQuality,
-                    questionnaireScale:
-                    _questionnaireScale,
-                  ),
-                ),
+                        onRefresh: _load,
+                        color: c.primary,
+                        child: _DashboardContent(
+                          session: _session!,
+                          duration: _duration,
+                          date: _date,
+                          time: _time,
+                          stageName: _stageName,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -229,10 +187,7 @@ class _Header extends StatelessWidget {
               child: SizedBox(
                 width: 48,
                 height: 48,
-                child: Icon(
-                  Icons.chevron_left,
-                  color: c.text,
-                ),
+                child: Icon(Icons.chevron_left, color: c.text),
               ),
             ),
           ),
@@ -258,17 +213,12 @@ class _DashboardContent extends StatelessWidget {
   final String Function(DateTime?) time;
   final String Function(String) stageName;
 
-  final String Function(int) questionnaireSleepQuality;
-  final String Function(int, List<String>) questionnaireScale;
-
   const _DashboardContent({
     required this.session,
     required this.duration,
     required this.date,
     required this.time,
     required this.stageName,
-    required this.questionnaireSleepQuality,
-    required this.questionnaireScale,
   });
 
   @override
@@ -277,30 +227,20 @@ class _DashboardContent extends StatelessWidget {
     final text = Theme.of(context).textTheme;
 
     final summary = session.summary;
-    final questionnaire = session.questionnaire;
+    final restReview = session.restReview;
 
     if (summary == null) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 32, 20, 28),
         children: [
-          Text(
-            'Your latest sleep',
-            style: text.headlineLarge,
-          ),
+          Text('Your latest sleep', style: text.headlineLarge),
           const SizedBox(height: 6),
-          Text(
-            date(session.startTime),
-            style: text.bodySmall,
-          ),
+          Text(date(session.startTime), style: text.bodySmall),
           const SizedBox(height: 28),
           AppCard(
             child: Column(
               children: [
-                Icon(
-                  Icons.hourglass_empty_rounded,
-                  size: 48,
-                  color: c.text,
-                ),
+                Icon(Icons.hourglass_empty_rounded, size: 48, color: c.text),
                 const SizedBox(height: 16),
                 Text(
                   'Sleep results are not ready yet',
@@ -323,26 +263,16 @@ class _DashboardContent extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 28),
       children: [
-        Text(
-          'Your latest sleep',
-          style: text.headlineLarge,
-        ),
+        Text('Your latest sleep', style: text.headlineLarge),
         const SizedBox(height: 6),
-        Text(
-          date(session.startTime),
-          style: text.bodySmall,
-        ),
+        Text(date(session.startTime), style: text.bodySmall),
 
         const SizedBox(height: 24),
 
-        // Main sleep duration
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: c.primary,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
           child: AspectRatio(
             aspectRatio: 1,
             child: Container(
@@ -353,22 +283,14 @@ class _DashboardContent extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'TOTAL SLEEP',
-                    style: text.labelSmall,
-                  ),
+                  Text('TOTAL SLEEP', style: text.labelSmall),
                   const SizedBox(height: 8),
                   Text(
                     duration(summary.totalSleepMinutes),
-                    style: text.headlineLarge?.copyWith(
-                      fontSize: 42,
-                    ),
+                    style: text.headlineLarge?.copyWith(fontSize: 42),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    'Wearable-based estimate',
-                    style: text.bodySmall,
-                  ),
+                  Text('Wearable-based estimate', style: text.bodySmall),
                 ],
               ),
             ),
@@ -377,7 +299,6 @@ class _DashboardContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        // Basic facts
         Row(
           children: [
             Expanded(
@@ -422,10 +343,7 @@ class _DashboardContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        Text(
-          'Body signals',
-          style: text.titleLarge,
-        ),
+        Text('Body signals', style: text.titleLarge),
         const SizedBox(height: 12),
 
         _SignalCard(
@@ -458,81 +376,68 @@ class _DashboardContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        Text(
-          'Sleep stages',
-          style: text.titleLarge,
-        ),
+        Text('Sleep stages', style: text.titleLarge),
         const SizedBox(height: 12),
 
         AppCard(
           alt: true,
           child: summary.stages.isEmpty
               ? SizedBox(
-            height: 180,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.bar_chart_rounded,
-                  size: 42,
-                  color: c.muted,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Sleep stage results are not ready yet',
-                  style: text.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Your Light and Deep sleep data will appear here after analysis.',
-                  style: text.bodySmall,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          )
+                  height: 180,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.bar_chart_rounded, size: 42, color: c.muted),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Sleep stage results are not ready yet',
+                        style: text.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Your Light and Deep sleep data will appear here after analysis.',
+                        style: text.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
               : Column(
-            children: summary.stages.entries.map((entry) {
-              final stage = entry.value;
+                  children: summary.stages.entries.map((entry) {
+                    final stage = entry.value;
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        stageName(entry.key),
-                        style: text.bodyLarge,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              stageName(entry.key),
+                              style: text.bodyLarge,
+                            ),
+                          ),
+                          Text(duration(stage.minutes), style: text.bodyMedium),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 48,
+                            child: Text(
+                              '${stage.percent}%',
+                              textAlign: TextAlign.end,
+                              style: text.bodyMedium,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      duration(stage.minutes),
-                      style: text.bodyMedium,
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 48,
-                      child: Text(
-                        '${stage.percent}%',
-                        textAlign: TextAlign.end,
-                        style: text.bodyMedium,
-                      ),
-                    ),
-                  ],
+                    );
+                  }).toList(),
                 ),
-              );
-            }).toList(),
-          ),
         ),
 
-        if (questionnaire != null) ...[
+        if (restReview != null) ...[
           const SizedBox(height: 28),
 
-          Text(
-            'You reported',
-            style: text.titleLarge,
-          ),
+          Text('You reported', style: text.titleLarge),
           const SizedBox(height: 12),
 
           AppCard(
@@ -540,41 +445,42 @@ class _DashboardContent extends StatelessWidget {
             child: Column(
               children: [
                 _AnswerRow(
-                  title: 'Sleep quality',
-                  value: questionnaireSleepQuality(
-                    questionnaire.sleepQuality,
-                  ),
+                  title: 'Sleepiness',
+                  value: restReview.sleepiness == null
+                      ? '—'
+                      : '${restReview.sleepiness} / 9',
                 ),
                 const Divider(),
                 _AnswerRow(
-                  title: 'How rested you feel',
-                  value: questionnaire.feeling,
+                  title: 'Heavy or slow after waking',
+                  value:
+                      RestReview.sleepInertiaOptions[restReview.sleepInertia] ??
+                      '—',
                 ),
+                if (restReview.toneRelaxing != null) ...[
+                  const Divider(),
+                  _AnswerRow(
+                    title: 'Tone helped you relax',
+                    value: '${restReview.toneRelaxing} / 5',
+                  ),
+                ],
+                if (restReview.toneReuse != null) ...[
+                  const Divider(),
+                  _AnswerRow(
+                    title: 'Use this tone again',
+                    value:
+                        RestReview.toneReuseOptions[restReview.toneReuse] ??
+                        '—',
+                  ),
+                ],
                 const Divider(),
                 _AnswerRow(
-                  title: 'Remembered awakenings',
-                  value: questionnaireScale(
-                    questionnaire.easeOfWaking,
-                    [
-                      'None',
-                      'Once',
-                      '2 to 3 times',
-                      '4 or more',
-                    ],
-                  ),
-                ),
-                const Divider(),
-                _AnswerRow(
-                  title: 'Time to fall asleep',
-                  value: questionnaireScale(
-                    questionnaire.easeOfFallingAsleep,
-                    [
-                      'Under 15 min',
-                      '15 to 30 min',
-                      'Over 30 min',
-                      'Not sure',
-                    ],
-                  ),
+                  title: 'What affected your sleep',
+                  value: restReview.sleepFactors.isEmpty
+                      ? '—'
+                      : restReview.sleepFactors
+                            .map((f) => RestReview.sleepFactorOptions[f] ?? f)
+                            .join(', '),
                 ),
               ],
             ),
@@ -606,22 +512,13 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: c.text,
-            size: 24,
-          ),
+          Icon(icon, color: c.text, size: 24),
           const SizedBox(height: 14),
-          Text(
-            title,
-            style: text.bodySmall,
-          ),
+          Text(title, style: text.bodySmall),
           const SizedBox(height: 5),
           Text(
             value,
-            style: text.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: text.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -652,27 +549,14 @@ class _SignalCard extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-              color: c.surface,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: c.text,
-            ),
+            decoration: BoxDecoration(color: c.surface, shape: BoxShape.circle),
+            child: Icon(icon, color: c.text),
           ),
           const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              title,
-              style: text.bodyLarge,
-            ),
-          ),
+          Expanded(child: Text(title, style: text.bodyLarge)),
           Text(
             value,
-            style: text.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: text.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -684,10 +568,7 @@ class _AnswerRow extends StatelessWidget {
   final String title;
   final String value;
 
-  const _AnswerRow({
-    required this.title,
-    required this.value,
-  });
+  const _AnswerRow({required this.title, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -698,20 +579,13 @@ class _AnswerRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              title,
-              style: text.bodyMedium,
-            ),
-          ),
+          Expanded(child: Text(title, style: text.bodyMedium)),
           const SizedBox(width: 16),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: text.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -741,11 +615,7 @@ class _EmptyState extends StatelessWidget {
                 color: c.surfaceAlt,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.nightlight_outlined,
-                size: 48,
-                color: c.text,
-              ),
+              child: Icon(Icons.nightlight_outlined, size: 48, color: c.text),
             ),
             const SizedBox(height: 24),
             Text(
@@ -770,10 +640,7 @@ class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -786,22 +653,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.cloud_off_outlined,
-              size: 48,
-              color: c.error,
-            ),
+            Icon(Icons.cloud_off_outlined, size: 48, color: c.error),
             const SizedBox(height: 16),
-            Text(
-              message,
-              style: text.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
+            Text(message, style: text.bodyMedium, textAlign: TextAlign.center),
             const SizedBox(height: 20),
-            TextButton(
-              onPressed: onRetry,
-              child: const Text('Try again'),
-            ),
+            TextButton(onPressed: onRetry, child: const Text('Try again')),
           ],
         ),
       ),

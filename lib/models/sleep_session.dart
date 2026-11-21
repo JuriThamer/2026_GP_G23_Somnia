@@ -68,37 +68,89 @@ class SleepSummary {
   }
 }
 
-class Questionnaire {
-  final int sleepQuality;
-  final String feeling;
-  final int easeOfWaking;
-  final int easeOfFallingAsleep;
+class RestReview {
+  static const Map<String, String> sleepInertiaOptions = {
+    'notAtAll': 'Not at all',
+    'aLittle': 'A little',
+    'aLot': 'A lot',
+  };
+
+  static const Map<String, String> toneReuseOptions = {
+    'yes': 'Yes',
+    'maybe': 'Maybe',
+    'no': 'No',
+  };
+
+  static const Map<String, String> sleepFactorOptions = {
+    'caffeineLate': 'Caffeine late',
+    'screenUseInBed': 'Screen use in bed',
+    'stress': 'Stress',
+    'illness': 'Illness',
+    'noise': 'Noise around me',
+    'none': 'None',
+  };
+
+  final int? sleepiness;
+  final String? sleepInertia;
+  final int? toneRelaxing;
+  final String? toneReuse;
+  final List<String> sleepFactors;
   final DateTime? submittedAt;
 
-  const Questionnaire({
-    required this.sleepQuality,
-    required this.feeling,
-    required this.easeOfWaking,
-    required this.easeOfFallingAsleep,
+  const RestReview({
+    this.sleepiness,
+    this.sleepInertia,
+    this.toneRelaxing,
+    this.toneReuse,
+    this.sleepFactors = const [],
     this.submittedAt,
   });
 
-  factory Questionnaire.fromMap(Map<String, dynamic> data) {
-    return Questionnaire(
-      sleepQuality: (data['sleepQuality'] as num? ?? 0).toInt(),
-      feeling: data['feeling'] ?? '',
-      easeOfWaking: (data['easeOfWaking'] as num? ?? 0).toInt(),
-      easeOfFallingAsleep: (data['easeOfFallingAsleep'] as num? ?? 0).toInt(),
+  static List<int> questionsFor({required bool hasTone}) {
+    return hasTone ? [1, 2, 3, 4, 5] : [1, 2, 5];
+  }
+
+  bool isAnswered(int question) {
+    switch (question) {
+      case 1:
+        return sleepiness != null && sleepiness! >= 1 && sleepiness! <= 9;
+      case 2:
+        return sleepInertiaOptions.containsKey(sleepInertia);
+      case 3:
+        return toneRelaxing != null && toneRelaxing! >= 1 && toneRelaxing! <= 5;
+      case 4:
+        return toneReuseOptions.containsKey(toneReuse);
+      case 5:
+        return sleepFactors.isNotEmpty &&
+            sleepFactors.every(sleepFactorOptions.containsKey) &&
+            (!sleepFactors.contains('none') || sleepFactors.length == 1);
+      default:
+        return false;
+    }
+  }
+
+  bool validate({required bool hasTone}) {
+    return questionsFor(hasTone: hasTone).every(isAnswered);
+  }
+
+  factory RestReview.fromMap(Map<String, dynamic> data) {
+    return RestReview(
+      sleepiness: (data['sleepiness'] as num?)?.toInt(),
+      sleepInertia: data['sleepInertia'],
+      toneRelaxing: (data['toneRelaxing'] as num?)?.toInt(),
+      toneReuse: data['toneReuse'],
+      sleepFactors: List<String>.from(data['sleepFactors'] ?? []),
       submittedAt: (data['submittedAt'] as Timestamp?)?.toDate(),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'sleepQuality': sleepQuality,
-      'feeling': feeling,
-      'easeOfWaking': easeOfWaking,
-      'easeOfFallingAsleep': easeOfFallingAsleep,
+      'sleepiness': sleepiness,
+      'sleepInertia': sleepInertia,
+      if (toneRelaxing != null) 'toneRelaxing': toneRelaxing,
+      if (toneReuse != null) 'toneReuse': toneReuse,
+      'sleepFactors': sleepFactors,
       'submittedAt': submittedAt == null
           ? FieldValue.serverTimestamp()
           : Timestamp.fromDate(submittedAt!),
@@ -152,7 +204,8 @@ class SleepSession {
   final DateTime? endTime;
   final List<String> rawDataPaths;
   final SleepSummary? summary;
-  final Questionnaire? questionnaire;
+  final RestReview? restReview;
+  final String? toneId;
   final SessionAlarm? alarm;
   final String? alarmTrigger;
   final String? modelVersion;
@@ -164,7 +217,8 @@ class SleepSession {
     this.endTime,
     this.rawDataPaths = const [],
     this.summary,
-    this.questionnaire,
+    this.restReview,
+    this.toneId,
     this.alarm,
     this.alarmTrigger,
     this.modelVersion,
@@ -174,6 +228,7 @@ class SleepSession {
   bool get isProcessing => status == 'processing';
   bool get isCompleted => status == 'completed';
   bool get isFailed => status == 'failed';
+  bool get hasTone => toneId != null && toneId!.isNotEmpty;
 
   factory SleepSession.fromMap(String sessionId, Map<String, dynamic> data) {
     return SleepSession(
@@ -185,11 +240,10 @@ class SleepSession {
       summary: data['summary'] == null
           ? null
           : SleepSummary.fromMap(Map<String, dynamic>.from(data['summary'])),
-      questionnaire: data['questionnaire'] == null
+      restReview: data['restReview'] == null
           ? null
-          : Questionnaire.fromMap(
-              Map<String, dynamic>.from(data['questionnaire']),
-            ),
+          : RestReview.fromMap(Map<String, dynamic>.from(data['restReview'])),
+      toneId: data['toneId'],
       alarm: data['alarm'] == null
           ? null
           : SessionAlarm.fromMap(Map<String, dynamic>.from(data['alarm'])),
@@ -205,7 +259,8 @@ class SleepSession {
       'endTime': endTime == null ? null : Timestamp.fromDate(endTime!),
       'rawDataPaths': rawDataPaths,
       'summary': summary?.toMap(),
-      'questionnaire': questionnaire?.toMap(),
+      'restReview': restReview?.toMap(),
+      'toneId': toneId,
       'alarm': alarm?.toMap(),
       'alarmTrigger': alarmTrigger,
       'modelVersion': modelVersion,
