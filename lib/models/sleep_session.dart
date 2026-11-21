@@ -197,12 +197,33 @@ class SessionAlarm {
   }
 }
 
+class RawDataPath {
+  final String path;
+  final DateTime? uploadedAt;
+
+  const RawDataPath({required this.path, this.uploadedAt});
+
+  factory RawDataPath.fromMap(Map<String, dynamic> data) {
+    return RawDataPath(
+      path: data['path'] ?? '',
+      uploadedAt: (data['uploadedAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'path': path,
+      'uploadedAt': uploadedAt == null ? null : Timestamp.fromDate(uploadedAt!),
+    };
+  }
+}
+
 class SleepSession {
   final String sessionId;
   final String status;
   final DateTime startTime;
   final DateTime? endTime;
-  final List<String> rawDataPaths;
+  final RawDataPath? rawDataPath;
   final SleepSummary? summary;
   final RestReview? restReview;
   final String? toneId;
@@ -215,7 +236,7 @@ class SleepSession {
     required this.status,
     required this.startTime,
     this.endTime,
-    this.rawDataPaths = const [],
+    this.rawDataPath,
     this.summary,
     this.restReview,
     this.toneId,
@@ -224,7 +245,7 @@ class SleepSession {
     this.modelVersion,
   });
 
-  bool get isActive => status == 'active';
+  bool get isActive => status == 'active' && endTime == null;
   bool get isProcessing => status == 'processing';
   bool get isCompleted => status == 'completed';
   bool get isFailed => status == 'failed';
@@ -236,7 +257,9 @@ class SleepSession {
       status: data['status'] ?? 'active',
       startTime: (data['startTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
       endTime: (data['endTime'] as Timestamp?)?.toDate(),
-      rawDataPaths: List<String>.from(data['rawDataPaths'] ?? []),
+      rawDataPath: data['rawDataPath'] == null
+          ? null
+          : RawDataPath.fromMap(Map<String, dynamic>.from(data['rawDataPath'])),
       summary: data['summary'] == null
           ? null
           : SleepSummary.fromMap(Map<String, dynamic>.from(data['summary'])),
@@ -257,7 +280,7 @@ class SleepSession {
       'status': status,
       'startTime': Timestamp.fromDate(startTime),
       'endTime': endTime == null ? null : Timestamp.fromDate(endTime!),
-      'rawDataPaths': rawDataPaths,
+      'rawDataPath': rawDataPath?.toMap(),
       'summary': summary?.toMap(),
       'restReview': restReview?.toMap(),
       'toneId': toneId,

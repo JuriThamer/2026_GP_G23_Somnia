@@ -18,7 +18,6 @@ class SessionService {
     final doc = await _sessions.add({
       'status': 'active',
       'startTime': FieldValue.serverTimestamp(),
-      'rawDataPaths': <String>[],
       'alarm': alarm?.toMap(),
     });
     return doc.id;
@@ -26,15 +25,23 @@ class SessionService {
 
   Future<void> endSession(String sessionId) async {
     await _sessions.doc(sessionId).update({
-      'status': 'processing',
       'endTime': Timestamp.now(),
     });
   }
 
-  Future<void> addRawDataPath(String sessionId, String path) async {
+  Future<void> markUploaded(String sessionId, String path) async {
     await _sessions.doc(sessionId).update({
-      'rawDataPaths': FieldValue.arrayUnion([path]),
+      'status': 'processing',
+      'rawDataPath': {
+        'path': path,
+        'uploadedAt': FieldValue.serverTimestamp(),
+      },
     });
+  }
+
+  Future<bool> sessionExists(String sessionId) async {
+    final doc = await _sessions.doc(sessionId).get();
+    return doc.exists;
   }
 
   Future<SleepSession?> getSession(String sessionId) async {
@@ -46,11 +53,12 @@ class SessionService {
   Future<SleepSession?> getActiveSession() async {
     final result = await _sessions
         .where('status', isEqualTo: 'active')
-        .limit(1)
         .get();
-    if (result.docs.isEmpty) return null;
-    final doc = result.docs.first;
-    return SleepSession.fromMap(doc.id, doc.data());
+    for (final doc in result.docs) {
+      final session = SleepSession.fromMap(doc.id, doc.data());
+      if (session.isActive) return session;
+    }
+    return null;
   }
 
   Future<List<SleepSession>> getSessions({int limit = 30}) async {
