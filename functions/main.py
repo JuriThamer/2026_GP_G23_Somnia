@@ -85,8 +85,7 @@ def check_epoch(req: https_fn.CallableRequest) -> dict:
 
     db = firestore.client()
     session = db.collection("users").document(req.auth.uid).collection("sleepSessions").document(session_id)
-    epochs = session.collection("epochs")
-
+    epochs = session.collection("wakeWindowEpochs")     
     snapshot = epochs.document(str(index).zfill(4)).get()
     if not snapshot.exists:
         return {"wake": False, "activity": None, "hr": None}

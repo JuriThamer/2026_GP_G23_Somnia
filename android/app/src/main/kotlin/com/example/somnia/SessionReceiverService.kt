@@ -76,8 +76,7 @@ class SessionReceiverService : WearableListenerService() {
 
         val saved = runCatching {
             Tasks.await(
-                session.collection("epochs")
-                    .document(index.toString().padStart(4, '0'))
+                session.collection("wakeWindowEpochs")                     .document(index.toString().padStart(4, '0'))
                     .set(
                         mapOf(
                             "index" to index,
@@ -86,6 +85,7 @@ class SessionReceiverService : WearableListenerService() {
                             "heart" to section(body, "heart"),
                             "motion" to section(body, "motion"),
                             "temp" to section(body, "temp"),
+                            "ppg" to section(body, "ppg"),
                         ),
                     ),
                 10,
