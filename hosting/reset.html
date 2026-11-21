@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Somnia</title>
+<style>
+  :root {
+    --bg: #14121F;
+    --card: #1D1A2C;
+    --text: #ECEAF6;
+    --muted: #A19CBC;
+    --line: #2E2A44;
+    --accent: #8B7CF0;
+    --good: #6FCF9F;
+    --bad: #F08B8B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px 24px;
+  }
+  h1 { margin: 0 0 6px; font-size: 22px; }
+  p { margin: 0 0 18px; color: var(--muted); }
+  label { display: block; margin-bottom: 6px; font-size: 14px; }
+  input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .bar { display: flex; gap: 6px; margin: 14px 0 10px; }
+  .bar span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); transition: background .2s; }
+  .bar span.on { background: var(--accent); }
+  .bar.full span.on { background: var(--good); }
+  ul { list-style: none; margin: 0 0 20px; padding: 0; font-size: 14px; }
+  li { padding: 3px 0; color: var(--bad); }
+  li::before { content: "✕ "; }
+  li.met { color: var(--good); }
+  li.met::before { content: "✓ "; }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .msg { margin-top: 14px; font-size: 14px; }
+  .msg.error { color: var(--bad); }
+  .msg.ok { color: var(--good); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="card">
+  <section id="loading">
+    <h1>Somnia</h1>
+    <p>Checking your link…</p>
+  </section>
+
+  <section id="reset" hidden>
+    <h1>Set a new password</h1>
+    <p id="resetEmail"></p>
+    <form id="resetForm" novalidate>
+      <label for="password">New password</label>
+      <input id="password" type="password" autocomplete="new-password">
+      <div class="bar" id="bar"><span></span><span></span><span></span><span></span><span></span></div>
+      <ul id="rules">
+        <li data-rule="length">At least 8 characters</li>
+        <li data-rule="upper">At least one uppercase letter (A–Z)</li>
+        <li data-rule="lower">At least one lowercase letter (a–z)</li>
+        <li data-rule="number">At least one number (0–9)</li>
+        <li data-rule="special">At least one special character (such as ! @ # $ %)</li>
+      </ul>
+      <button id="save" type="submit" disabled>Save password</button>
+      <div id="resetMsg" class="msg" role="alert"></div>
+    </form>
+  </section>
+
+  <section id="expired" hidden>
+    <h1>This link can no longer be used</h1>
+    <p>The link has expired or has already been used, so your password was not changed. Enter your email to get a new link.</p>
+    <form id="resendForm" novalidate>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email">
+      <div style="height:16px"></div>
+      <button type="submit">Send a new link</button>
+      <div id="resendMsg" class="msg" role="alert"></div>
+    </form>
+  </section>
+
+  <section id="done" hidden>
+    <h1 id="doneTitle"></h1>
+    <p id="doneText"></p>
+  </section>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth,
+    verifyPasswordResetCode,
+    confirmPasswordReset,
+    sendPasswordResetEmail,
+    applyActionCode,
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode");
+  const code = params.get("oobCode");
+  const apiKey = params.get("apiKey");
+
+  const rules = {
+    length: (p) => p.length >= 8,
+    upper: (p) => /[A-Z]/.test(p),
+    lower: (p) => /[a-z]/.test(p),
+    number: (p) => /[0-9]/.test(p),
+    special: (p) => /[^A-Za-z0-9]/.test(p),
+  };
+
+  const show = (id) => {
+    for (const s of document.querySelectorAll("main > section")) s.hidden = s.id !== id;
+  };
+
+  const finish = (title, text) => {
+    document.getElementById("doneTitle").textContent = title;
+    document.getElementById("doneText").textContent = text;
+    show("done");
+  };
+
+  const isExpired = (error) =>
+    error.code === "auth/expired-action-code" || error.code === "auth/invalid-action-code";
+
+  if (!code || !apiKey) {
+    finish("Invalid link", "This link is not complete. Open the latest email from Somnia and try again.");
+  } else {
+    const auth = getAuth(initializeApp({ apiKey }));
+
+    if (mode === "resetPassword") {
+      startReset(auth);
+    } else if (mode === "verifyEmail") {
+      applyActionCode(auth, code)
+        .then(() => finish("Email verified", "Your email is verified. Go back to Somnia and log in."))
+        .catch((error) =>
+          finish(
+            "Email not verified",
+            isExpired(error)
+              ? "This link has expired or has already been used. Open Somnia to send a new verification link."
+              : "Something went wrong. Check your connection and open the link again.",
+          ),
+        );
+    } else {
+      finish("Invalid link", "This link is not supported. Open the latest email from Somnia and try again.");
+    }
+  }
+
+  async function startReset(auth) {
+    let email;
+    try {
+      email = await verifyPasswordResetCode(auth, code);
+    } catch (error) {
+      showExpired(auth);
+      return;
+    }
+
+    document.getElementById("resetEmail").textContent = `For ${email}`;
+    show("reset");
+
+    const input = document.getElementById("password");
+    const save = document.getElementById("save");
+    const bar = document.getElementById("bar");
+    const msg = document.getElementById("resetMsg");
+
+    input.addEventListener("input", () => {
+      const value = input.value;
+      let met = 0;
+      for (const item of document.querySelectorAll("#rules li")) {
+        const ok = rules[item.dataset.rule](value);
+        item.classList.toggle("met", ok);
+        if (ok) met++;
+      }
+      bar.querySelectorAll("span").forEach((s, i) => s.classList.toggle("on", i < met));
+      bar.classList.toggle("full", met === 5);
+      save.disabled = met !== 5;
+      msg.textContent = "";
+    });
+
+    document.getElementById("resetForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const value = input.value;
+      const missing = Object.keys(rules).filter((r) => !rules[r](value));
+      if (missing.length) {
+        msg.className = "msg error";
+        msg.textContent = "Your password does not meet all the rules shown above.";
+        return;
+      }
+      save.disabled = true;
+      try {
+        await confirmPasswordReset(auth, code, value);
+        finish("Password changed", "Your new password is saved. Go back to Somnia and log in with it.");
+      } catch (error) {
+        if (isExpired(error)) {
+          showExpired(auth);
+        } else {
+          msg.className = "msg error";
+          msg.textContent = "The password could not be saved. Check your connection and try again.";
+          save.disabled = false;
+        }
+      }
+    });
+  }
+
+  function showExpired(auth) {
+    show("expired");
+    const form = document.getElementById("resendForm");
+    const input = document.getElementById("email");
+    const msg = document.getElementById("resendMsg");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = input.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        msg.className = "msg error";
+        msg.textContent = "Enter a valid email address.";
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, email);
+        msg.className = "msg ok";
+        msg.textContent = "If this email has a Somnia account, a new link is on its way.";
+      } catch (error) {
+        msg.className = "msg error";
+        msg.textContent = "The link could not be sent. Check your connection and try again.";
+      }
+    });
+  }
+</script>
+</body>
+</html>

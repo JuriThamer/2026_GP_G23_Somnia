@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../app_router.dart';
 import '../../models/app_user.dart';
+import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
 import '../../services/user_service.dart';
+import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 
@@ -19,6 +21,7 @@ class ActiveSessionScreen extends StatefulWidget {
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   final _userService = UserService();
   final _sessionService = SessionService();
+  final _watchService = WatchService();
 
   Stream<AppUser?>? _userStream;
   Timer? _timer;
@@ -29,6 +32,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   bool _ending = false;
   bool _started = false;
   String? _error;
+  WatchInfo? _found;
+  SessionAlarm? _alarm;
+  bool _checked = false;
 
   @override
   void didChangeDependencies() {
@@ -60,17 +66,29 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       setState(() {
         _sessionId = session.sessionId;
         _start = session.startTime;
+        _alarm = session.alarm;
         _elapsed = DateTime.now().difference(_start!);
         _loading = false;
       });
+      _checkWatch();
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() => _elapsed = DateTime.now().difference(_start!));
+        if (_elapsed.inSeconds % 15 == 0) _checkWatch();
       });
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _checkWatch() async {
+    final found = await _watchService.findWatch();
+    if (!mounted) return;
+    setState(() {
+      _found = found;
+      _checked = true;
+    });
   }
 
   @override
@@ -106,6 +124,19 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     final hour = d.hour % 12 == 0 ? 12 : d.hour % 12;
     final period = d.hour < 12 ? 'AM' : 'PM';
     return 'Started $hour:${_two(d.minute)} $period · ${d.day} ${months[d.month - 1]}';
+  }
+
+  String _time(DateTime d) {
+    final hour = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final period = d.hour < 12 ? 'AM' : 'PM';
+    return '$hour:${_two(d.minute)} $period';
+  }
+
+  String get _alarmLine {
+    final alarm = _alarm;
+    if (alarm == null) return 'No alarm tonight';
+    if (!alarm.smart) return 'Wake-up ${_time(alarm.wakeAt)} · Smart Alarm off';
+    return 'Wake-up ${_time(alarm.wakeAt)} · Smart Alarm from ${_time(alarm.windowStart)}';
   }
 
   Future<void> _askEnd() async {
@@ -178,7 +209,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     });
 
     try {
-      await _sessionService.endSession(_sessionId!);
+      _sessionService.endSession(_sessionId!).catchError((_) {});
+      await _watchService.stopRecording(_sessionId!);
       _timer?.cancel();
       if (!mounted) return;
       Navigator.pushReplacementNamed(
@@ -319,11 +351,22 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                       style: text.bodySmall,
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _alarmLine,
+                      style: text.bodyMedium!.copyWith(
+                        color: c.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 20),
                     StreamBuilder<AppUser?>(
                       stream: _userStream,
                       builder: (context, snapshot) {
-                        final connected = snapshot.data?.watch != null;
+                        final connected =
+                            !_checked ||
+                            (snapshot.data?.watch != null && _found != null);
                         final color = connected ? c.success : c.error;
                         return Container(
                           width: double.infinity,

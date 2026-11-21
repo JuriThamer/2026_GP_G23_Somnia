@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
+import '../models/alarm.dart';
 import '../models/app_user.dart';
 
 class UserService {
@@ -9,7 +9,9 @@ class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   String? get uid => _auth.currentUser?.uid;
+  String? get email => _auth.currentUser?.email;
   bool get isSignedIn => _auth.currentUser != null;
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
   Stream<User?> get authChanges => _auth.authStateChanges();
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) {
@@ -31,7 +33,30 @@ class UserService {
       email: email.trim(),
     );
     await _userDoc(user.uid).set(user.toMap());
+    try {
+      await credential.user!.sendEmailVerification();
+    } catch (_) {}
     return user;
+  }
+
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'No signed-in user found.',
+      );
+    }
+
+    await user.sendEmailVerification();
+  }
+
+  Future<bool> reloadEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
   }
 
   Future<void> signIn({required String email, required String password}) async {
@@ -76,6 +101,11 @@ class UserService {
   Future<void> updateWatch(Map<String, dynamic>? watch) async {
     await _userDoc(uid!).update({'watch': watch});
   }
+
+  Future<void> updateAlarm(Alarm alarm) async {
+    await _userDoc(uid!).update({'alarm': alarm.toMap()});
+  }
+
   Future<void> updateEmail({
     required String currentPassword,
     required String newEmail,
@@ -94,10 +124,8 @@ class UserService {
       password: currentPassword,
     );
 
-    // Re-authenticate the user first.
     await user.reauthenticateWithCredential(credential);
 
-    // Send verification email to the new address.
     await user.verifyBeforeUpdateEmail(newEmail.trim());
   }
 
@@ -122,5 +150,19 @@ class UserService {
     await user.reauthenticateWithCredential(credential);
 
     await user.updatePassword(newPassword);
+  }
+
+  Future<void> sendPasswordResetToCurrentUser() async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'No signed-in user with an email was found.',
+      );
+    }
+
+    await _auth.sendPasswordResetEmail(email: email);
   }
 }

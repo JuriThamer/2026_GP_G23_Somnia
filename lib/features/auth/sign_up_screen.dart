@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../../app_router.dart';
 import '../../services/user_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/password_rules.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 
@@ -24,10 +26,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? _passwordError;
   String? _authError;
   bool _showPassword = false;
+  bool _showRules = false;
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _password.addListener(_onPasswordChanged);
+  }
+
+  void _onPasswordChanged() {
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    _password.removeListener(_onPasswordChanged);
     _name.dispose();
     _email.dispose();
     _password.dispose();
@@ -45,11 +59,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _emailError = email.isEmpty
           ? 'Enter your email address.'
           : emailOk
-              ? null
-              : 'Enter a valid email address.';
-      _passwordError = _password.text.length < 8
-          ? 'Password must be at least 8 characters.'
-          : null;
+          ? null
+          : 'Enter a valid email address.';
+      _passwordError = _password.text.isEmpty
+          ? 'Enter a password.'
+          : PasswordRules.isValid(_password.text)
+          ? null
+          : 'Your password does not meet all the rules below.';
+      _showRules = true;
     });
 
     return _nameError == null && _emailError == null && _passwordError == null;
@@ -68,7 +85,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
-        AppRoutes.home,
+        AppRoutes.verifyEmail,
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -79,8 +96,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
               'An account with this email already exists. Sign in instead.';
         } else if (e.code == 'invalid-email') {
           _emailError = 'Enter a valid email address.';
-        } else if (e.code == 'weak-password') {
-          _passwordError = 'Choose a stronger password.';
+        } else if (e.code == 'weak-password' ||
+            e.code == 'password-does-not-meet-requirements') {
+          _passwordError = 'Your password does not meet all the rules below.';
+          _showRules = true;
         } else if (e.code == 'network-request-failed') {
           _authError = 'No internet connection. Please try again.';
         } else {
@@ -139,8 +158,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   children: [
                     TextSpan(
                       text: 'account',
-                      style: text.headlineLarge!
-                          .copyWith(fontStyle: FontStyle.italic),
+                      style: text.headlineLarge!.copyWith(
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                     const TextSpan(text: '.'),
                   ],
@@ -150,8 +170,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 18),
               if (_authError != null) ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: c.surface,
                     borderRadius: BorderRadius.circular(20),
@@ -181,7 +203,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 14),
               AppTextField(
                 label: 'Password',
-                hint: 'At least 8 characters',
+                hint: 'Create a strong password',
                 controller: _password,
                 errorText: _passwordError,
                 obscureText: !_showPassword,
@@ -197,6 +219,52 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value:
+                      PasswordRules.metCount(_password.text) /
+                      PasswordRules.all.length,
+                  minHeight: 6,
+                  backgroundColor: c.line,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    PasswordRules.isValid(_password.text)
+                        ? c.success
+                        : c.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...PasswordRules.all.map((rule) {
+                final met = rule.test(_password.text);
+                final color = met
+                    ? c.success
+                    : _showRules
+                    ? c.error
+                    : c.muted;
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        met ? Icons.check_circle : Icons.radio_button_unchecked,
+                        size: 18,
+                        color: color,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          rule.label,
+                          style: text.bodySmall!.copyWith(color: color),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
               const SizedBox(height: 24),
               AppButton(
                 label: 'Create Account',
@@ -208,10 +276,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: AppButton(
                   label: 'I already have an account',
                   style: AppButtonStyle.text,
-                  onPressed: () => Navigator.pushReplacementNamed(
-                    context,
-                    AppRoutes.signIn,
-                  ),
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, AppRoutes.signIn),
                 ),
               ),
             ],

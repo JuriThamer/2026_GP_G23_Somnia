@@ -14,26 +14,37 @@ class SessionService {
         .collection('sleepSessions');
   }
 
-  Future<String> startSession() async {
+  Future<String> startSession({SessionAlarm? alarm, String? toneId}) async {
     final doc = await _sessions.add({
       'status': 'active',
       'startTime': FieldValue.serverTimestamp(),
-      'rawDataPaths': <String>[],
+      'alarm': alarm?.toMap(),
+      'toneId': toneId,
     });
     return doc.id;
   }
 
   Future<void> endSession(String sessionId) async {
-    await _sessions.doc(sessionId).update({
-      'status': 'processing',
-      'endTime': FieldValue.serverTimestamp(),
-    });
+    await _sessions.doc(sessionId).update({'endTime': Timestamp.now()});
   }
 
-  Future<void> addRawDataPath(String sessionId, String path) async {
-    await _sessions.doc(sessionId).update({
-      'rawDataPaths': FieldValue.arrayUnion([path]),
+  Future<void> markUploaded(String sessionId, String path) async {
+    final session = _sessions.doc(sessionId);
+    final epochs = await session.collection('wakeWindowEpochs').get();
+    final batch = _db.batch();
+    batch.update(session, {
+      'status': 'processing',
+      'rawDataPath': {'path': path, 'uploadedAt': FieldValue.serverTimestamp()},
     });
+    for (final epoch in epochs.docs) {
+      batch.delete(epoch.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<bool> sessionExists(String sessionId) async {
+    final doc = await _sessions.doc(sessionId).get();
+    return doc.exists;
   }
 
   Future<SleepSession?> getSession(String sessionId) async {
@@ -43,13 +54,12 @@ class SessionService {
   }
 
   Future<SleepSession?> getActiveSession() async {
-    final result = await _sessions
-        .where('status', isEqualTo: 'active')
-        .limit(1)
-        .get();
-    if (result.docs.isEmpty) return null;
-    final doc = result.docs.first;
-    return SleepSession.fromMap(doc.id, doc.data());
+    final result = await _sessions.where('status', isEqualTo: 'active').get();
+    for (final doc in result.docs) {
+      final session = SleepSession.fromMap(doc.id, doc.data());
+      if (session.isActive) return session;
+    }
+    return null;
   }
 
   Future<List<SleepSession>> getSessions({int limit = 30}) async {
@@ -84,12 +94,7 @@ class SessionService {
         );
   }
 
-  Future<void> saveQuestionnaire(
-    String sessionId,
-    Questionnaire questionnaire,
-  ) async {
-    await _sessions.doc(sessionId).update({
-      'questionnaire': questionnaire.toMap(),
-    });
+  Future<void> saveRestReview(String sessionId, RestReview restReview) async {
+    await _sessions.doc(sessionId).update({'restReview': restReview.toMap()});
   }
 }

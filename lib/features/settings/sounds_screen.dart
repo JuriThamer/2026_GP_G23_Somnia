@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../models/tranquil_tone.dart';
+import '../../services/tone_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_card.dart';
 
@@ -11,60 +15,190 @@ class SoundsScreen extends StatefulWidget {
 }
 
 class _SoundsScreenState extends State<SoundsScreen> {
-  int _selectedIndex = 0;
-  bool _isPlaying = false;
+  final ToneService _toneService = ToneService.instance;
 
-  final List<_DemoSound> _sounds = const [
-    _DemoSound(
-      title: 'Gentle Rain',
-      description: 'Soft rainfall for a peaceful night',
-      duration: '30 min',
-      icon: Icons.water_drop_outlined,
-    ),
-    _DemoSound(
-      title: 'Calm Ocean',
-      description: 'Relaxing waves and ocean ambience',
-      duration: '45 min',
-      icon: Icons.waves_outlined,
-    ),
-    _DemoSound(
-      title: 'Forest Night',
-      description: 'Quiet nighttime sounds from the forest',
-      duration: '30 min',
-      icon: Icons.forest_outlined,
-    ),
-    _DemoSound(
-      title: 'Soft Wind',
-      description: 'A gentle breeze to help you unwind',
-      duration: '20 min',
-      icon: Icons.air,
-    ),
-  ];
+  List<TranquilTone> _tones = [];
+  String? _selectedId;
 
-  void _selectSound(int index) {
+  bool _isLoading = true;
+  bool _isBusy = false;
+
+  String? _error;
+
+  Timer? _ticker;
+
+  TranquilTone? get _selectedTone {
+    for (final tone in _tones) {
+      if (tone.toneId == _selectedId) return tone;
+    }
+
+    return _tones.isEmpty ? null : _tones.first;
+  }
+
+  bool get _selectedIsCurrent =>
+      _selectedTone != null &&
+      _toneService.currentTone?.toneId == _selectedTone!.toneId;
+
+  bool get _selectedIsPlaying => _selectedIsCurrent && _toneService.isPlaying;
+
+  int get _elapsedSeconds =>
+      _selectedIsCurrent ? _toneService.elapsed.inSeconds : 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _toneService.addListener(_onToneChanged);
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _toneService.isPlaying) {
+        setState(() {});
+      }
+    });
+    _loadTones();
+  }
+
+  void _onToneChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadTones() async {
+    try {
+      final tones = await _toneService.getTones();
+
+      if (!mounted) return;
+
+      setState(() {
+        _tones = tones;
+        _selectedId =
+            _toneService.currentTone?.toneId ??
+            (tones.isEmpty ? null : tones.first.toneId);
+        _isLoading = false;
+        _error = null;
+      });
+    } catch (e) {
+      debugPrint('Error loading tones: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _error = 'Could not load tones. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _selectTone(TranquilTone tone) async {
+    if (_isBusy || tone.toneId == _selectedTone?.toneId) return;
+
+    final current = _toneService.currentTone;
+
+    if (current != null && current.toneId != tone.toneId) {
+      await _toneService.stop();
+    }
+
+    if (!mounted) return;
+
     setState(() {
-      _selectedIndex = index;
-      _isPlaying = false;
+      _selectedId = tone.toneId;
     });
   }
 
-  void _togglePlay() {
+  Future<void> _togglePlay() async {
+    final tone = _selectedTone;
+
+    if (tone == null || _isBusy) return;
+
+    if (_selectedIsPlaying) {
+      await _toneService.pause();
+      return;
+    }
+
     setState(() {
-      _isPlaying = !_isPlaying;
+      _isBusy = true;
     });
+
+    try {
+      await _toneService.play(tone);
+    } catch (e) {
+      debugPrint('Error playing tone: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not play this tone. Check your connection and try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+        });
+      }
+    }
+  }
+
+  String _durationLabel(int minutes) {
+    if (minutes < 60) return '$minutes min';
+    final hours = minutes ~/ 60;
+    return hours == 1 ? '1 hour' : '$hours hours';
+  }
+
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  IconData _iconFor(TranquilTone tone) {
+    final value = tone.title.toLowerCase();
+
+    if (value.contains('white noise') || value.contains('whitenoise')) {
+      return Icons.graphic_eq_rounded;
+    }
+
+    if (value.contains('forest') ||
+        value.contains('bird') ||
+        value.contains('nature')) {
+      return Icons.forest_outlined;
+    }
+
+    if (value.contains('river') ||
+        value.contains('water') ||
+        value.contains('stream') ||
+        value.contains('ocean')) {
+      return Icons.waves_outlined;
+    }
+
+    if (value.contains('rain')) {
+      return Icons.water_drop_outlined;
+    }
+
+    return Icons.air;
+  }
+
+  @override
+  void dispose() {
+    _toneService.removeListener(_onToneChanged);
+    _ticker?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final text = Theme.of(context).textTheme;
-    final selectedSound = _sounds[_selectedIndex];
+    final selectedTone = _selectedTone;
+    final timerMinutes = _toneService.timerMinutes;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: colors.gradient,
-        ),
+        decoration: BoxDecoration(gradient: colors.gradient),
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -80,152 +214,188 @@ class _SoundsScreenState extends State<SoundsScreen> {
                       child: SizedBox(
                         width: 48,
                         height: 48,
-                        child: Icon(
-                          Icons.chevron_left,
-                          color: colors.text,
-                        ),
+                        child: Icon(Icons.chevron_left, color: colors.text),
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 16),
-
-                  Text(
-                    'Sounds',
-                    style: text.headlineLarge,
-                  ),
+                  Text('Tranquil Tones', style: text.headlineLarge),
                 ],
               ),
-
               const SizedBox(height: 8),
-
               Text(
-                'Choose a calming sound for your bedtime routine.',
+                'Choose a calming tone to play as you fall asleep.',
                 style: text.bodySmall,
               ),
-
               const SizedBox(height: 28),
-
-              Text(
-                'NOW PLAYING',
-                style: text.labelSmall,
-              ),
-
+              Text('NOW PLAYING', style: text.labelSmall),
               const SizedBox(height: 12),
+              if (_isLoading)
+                const AppCard(
+                  padding: EdgeInsets.all(28),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_error != null && _tones.isEmpty)
+                AppCard(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    children: [
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _isLoading = true;
+                            _error = null;
+                          });
 
-              AppCard(
-                padding: const EdgeInsets.all(22),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.14),
-                        shape: BoxShape.circle,
+                          _loadTones();
+                        },
+                        child: const Text('Try again'),
                       ),
-                      child: Icon(
-                        selectedSound.icon,
-                        size: 34,
-                        color: colors.primary,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Text(
-                      selectedSound.title,
-                      style: text.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    Text(
-                      selectedSound.description,
-                      style: text.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(
-                      children: [
-                        Text(
-                          '00:00',
-                          style: text.labelSmall,
+                    ],
+                  ),
+                )
+              else if (selectedTone == null)
+                const AppCard(
+                  padding: EdgeInsets.all(22),
+                  child: Center(
+                    child: Text('No tones are available right now.'),
+                  ),
+                )
+              else
+                AppCard(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
                         ),
-
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: LinearProgressIndicator(
-                                value: _isPlaying ? 0.35 : 0,
-                                minHeight: 5,
-                                backgroundColor: colors.line,
-                                valueColor:
-                                AlwaysStoppedAnimation<Color>(
-                                  colors.primary,
+                        child: Icon(
+                          _iconFor(selectedTone),
+                          size: 34,
+                          color: colors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        selectedTone.title,
+                        style: text.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${selectedTone.durationMinutes} min',
+                        style: text.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Text('Stop after', style: text.bodySmall),
+                          const Spacer(),
+                          DropdownButton<int>(
+                            value: timerMinutes,
+                            underline: const SizedBox.shrink(),
+                            borderRadius: BorderRadius.circular(14),
+                            items: ToneService.timerOptions
+                                .map(
+                                  (minutes) => DropdownMenuItem(
+                                    value: minutes,
+                                    child: Text(_durationLabel(minutes)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _isBusy
+                                ? null
+                                : (minutes) {
+                                    if (minutes != null) {
+                                      _toneService.setTimer(minutes);
+                                    }
+                                  },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text(
+                            _formatTime(_elapsedSeconds),
+                            style: text.labelSmall,
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: LinearProgressIndicator(
+                                  value: (_elapsedSeconds / (timerMinutes * 60))
+                                      .clamp(0.0, 1.0),
+                                  minHeight: 5,
+                                  backgroundColor: colors.line,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    colors.primary,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-
-                        Text(
-                          selectedSound.duration,
-                          style: text.labelSmall,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    GestureDetector(
-                      onTap: _togglePlay,
-                      child: Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: colors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                          size: 30,
-                          color: colors.onPrimary,
+                          Text(
+                            _durationLabel(timerMinutes),
+                            style: text.labelSmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      GestureDetector(
+                        onTap: _isBusy ? null : _togglePlay,
+                        child: Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: _isBusy
+                                ? SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colors.onPrimary,
+                                    ),
+                                  )
+                                : Icon(
+                                    _selectedIsPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                    size: 30,
+                                    color: colors.onPrimary,
+                                  ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-
               const SizedBox(height: 30),
-
-              Text(
-                'RELAXING SOUNDS',
-                style: text.labelSmall,
-              ),
-
+              Text('ALL TONES', style: text.labelSmall),
               const SizedBox(height: 12),
-
-              ...List.generate(
-                _sounds.length,
-                    (index) {
-                  final sound = _sounds[index];
-                  final selected = index == _selectedIndex;
+              if (!_isLoading && _error == null)
+                ..._tones.map((tone) {
+                  final selected = tone.toneId == selectedTone?.toneId;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: AppCard(
-                      onTap: () => _selectSound(index),
+                      onTap: () => _selectTone(tone),
                       padding: const EdgeInsets.all(16),
                       alt: selected,
                       child: Row(
@@ -240,77 +410,28 @@ class _SoundsScreenState extends State<SoundsScreen> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Icon(
-                              sound.icon,
-                              color: selected
-                                  ? colors.primary
-                                  : colors.text,
+                              _iconFor(tone),
+                              color: selected ? colors.primary : colors.text,
                             ),
                           ),
-
                           const SizedBox(width: 14),
-
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  sound.title,
-                                  style: text.bodyLarge,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  sound.description,
-                                  style: text.bodySmall,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
+                            child: Text(tone.title, style: text.bodyLarge),
                           ),
-
                           const SizedBox(width: 8),
-
                           Text(
-                            sound.duration,
+                            '${tone.durationMinutes} min',
                             style: text.labelSmall,
                           ),
                         ],
                       ),
                     ),
                   );
-                },
-              ),
-
-              const SizedBox(height: 8),
-
-              Center(
-                child: Text(
-                  'Demo sounds • Audio will be connected later',
-                  style: text.labelSmall?.copyWith(
-                    color: colors.muted,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+                }),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-class _DemoSound {
-  final String title;
-  final String description;
-  final String duration;
-  final IconData icon;
-
-  const _DemoSound({
-    required this.title,
-    required this.description,
-    required this.duration,
-    required this.icon,
-  });
 }

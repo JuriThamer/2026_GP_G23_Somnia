@@ -1,12 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../app_router.dart';
+import '../../models/alarm.dart';
 import '../../models/app_user.dart';
 import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
+import '../../services/tone_service.dart';
 import '../../services/user_service.dart';
+import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
+import '../../services/upload_service.dart';
+import '../alarm/alarm_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,11 +26,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _userService = UserService();
   final _sessionService = SessionService();
+  final _watchService = WatchService();
+  final _uploadService = UploadService();
 
   Stream<AppUser?>? _userStream;
   SleepSession? _active;
   SleepSession? _latest;
   bool _starting = false;
+  bool _uploading = false;
+  int _pending = 0;
+  Timer? _timer;
+  WatchInfo? _found;
 
   @override
   void initState() {
@@ -30,10 +44,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_userService.isSignedIn) {
       _userStream = _userService.watchUser();
       _load();
+      _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+        _checkWatch();
+        if (_pending == 0) _upload();
+      });
     }
   }
 
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    _upload();
+    _checkWatch();
     try {
       final active = await _sessionService.getActiveSession();
       final latest = await _sessionService.getLatestCompleted();
@@ -43,6 +69,27 @@ class _HomeScreenState extends State<HomeScreen> {
         _latest = latest;
       });
     } catch (_) {}
+  }
+
+  Future<void> _checkWatch() async {
+    final found = await _watchService.findWatch();
+    if (!mounted || found?.id == _found?.id) return;
+    setState(() => _found = found);
+  }
+
+  Future<void> _upload() async {
+    if (_uploading) return;
+    _uploading = true;
+    final pending = await _uploadService.pendingCount().catchError((_) => 0);
+    if (pending > 0) {
+      if (mounted) setState(() => _pending = pending);
+      await _uploadService.uploadPending().catchError((_) => 0);
+    }
+    final left = await _uploadService.pendingCount().catchError((_) => 0);
+    _uploading = false;
+    if (mounted && (pending > 0 || left != _pending)) {
+      setState(() => _pending = left);
+    }
   }
 
   Future<void> _open(String route, {Object? arguments}) async {
@@ -59,9 +106,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() => _starting = true);
     try {
-      final id = await _sessionService.startSession();
+      final user = await _userService.getUser();
+      final settings = user?.alarm ?? const Alarm();
+      final wakeAt = settings.nextWake(DateTime.now());
+      final alarm = wakeAt == null
+          ? null
+          : SessionAlarm(
+              wakeAt: wakeAt,
+              window: settings.window,
+              smart: settings.smart,
+              repeats: settings.repeats,
+            );
+      final id = await _sessionService.startSession(
+        alarm: alarm,
+        toneId: ToneService.instance.playingToneId,
+      );
+      final sent = await _watchService.startRecording(id, alarm: alarm);
       if (!mounted) return;
       setState(() => _starting = false);
+      if (!sent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not reach the watch. Recording did not start.',
+            ),
+          ),
+        );
+      }
       await _open(AppRoutes.activeSession, arguments: id);
     } catch (_) {
       if (!mounted) return;
@@ -80,11 +151,31 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${h}h ${m.toString().padLeft(2, '0')}m';
   }
 
+  String _alarmLabel(Alarm alarm) {
+    if (!alarm.isSet) return 'Not set';
+    final parts = alarm.time.split(':');
+    final h = int.parse(parts[0]);
+    final m = parts[1];
+    final hour = h % 12 == 0 ? 12 : h % 12;
+    final period = h < 12 ? 'AM' : 'PM';
+    return '$hour:$m $period';
+  }
+
   String _date(DateTime? d) {
     if (d == null) return '';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${d.day} ${months[d.month - 1]}';
   }
@@ -137,30 +228,37 @@ class _HomeScreenState extends State<HomeScreen> {
               final user = snapshot.data;
               final name = user?.name ?? '';
               final initial = name.isEmpty ? '?' : name[0].toUpperCase();
-              final connected = user?.watch != null;
+              final paired = user?.watch != null;
+              final connected = paired && _found != null;
               final hasActive = _active != null;
               final ready = connected || hasActive;
 
               final dialTitle = hasActive
                   ? 'In progress'
                   : connected
-                      ? 'Ready'
-                      : 'No watch';
+                  ? 'Ready'
+                  : 'No watch';
               final dialLine = hasActive
                   ? 'A sleep session is already running.'
                   : connected
-                      ? 'Your watch is connected.'
-                      : 'Connect your watch to begin.';
+                  ? 'Your watch is connected.'
+                  : paired
+                  ? 'Your watch is out of reach.'
+                  : 'Connect your watch to begin.';
               final buttonLabel = hasActive
                   ? 'Resume Session'
                   : connected
-                      ? 'Start Sleep Session'
-                      : 'Connect Watch';
+                  ? 'Start Sleep Session'
+                  : paired
+                  ? 'Check Watch'
+                  : 'Connect Watch';
               final hint = hasActive
                   ? 'Open the running session to end it.'
                   : connected
-                      ? 'Start when you are in bed and ready to sleep.'
-                      : 'Somnia needs your Galaxy Watch7 to sense the night.';
+                  ? 'Start when you are in bed and ready to sleep.'
+                  : paired
+                  ? 'Keep your watch nearby with Bluetooth on.'
+                  : 'Somnia needs your Galaxy Watch7 to sense the night.';
 
               return Column(
                 children: [
@@ -297,15 +395,40 @@ class _HomeScreenState extends State<HomeScreen> {
                               _Satellite(
                                 icon: Icons.watch_outlined,
                                 label: 'Watch',
-                                value: connected ? 'Connected' : 'Not connected',
+                                value: connected
+                                    ? 'Connected'
+                                    : 'Not connected',
                                 onTap: () => _open(AppRoutes.watch),
                               ),
                               const SizedBox(width: 36),
                               _Satellite(
-                                icon: Icons.graphic_eq,
-                                label: 'Sound',
-                                value: 'White noise',
-                                onTap: () => _open(AppRoutes.sounds),
+                                icon: Icons.alarm,
+                                label: 'Wake-up',
+                                value: _alarmLabel(
+                                  user?.alarm ?? const Alarm(),
+                                ),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AlarmScreen(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 36),
+                              ListenableBuilder(
+                                listenable: ToneService.instance,
+                                builder: (context, _) {
+                                  final tones = ToneService.instance;
+                                  final playing = tones.isPlaying
+                                      ? tones.currentTone
+                                      : null;
+                                  return _Satellite(
+                                    icon: Icons.graphic_eq,
+                                    label: 'Tone',
+                                    value: playing?.title ?? 'Off',
+                                    onTap: () => _open(AppRoutes.sounds),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -324,6 +447,51 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Column(
                       children: [
+                        if (_pending > 0) ...[
+                          AppCard(
+                            alt: true,
+                            onTap: _uploading ? null : _upload,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _uploading
+                                            ? 'Uploading sleep data'
+                                            : 'Sleep data waiting',
+                                        style: text.bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _uploading
+                                            ? (_pending == 1
+                                                  ? '1 night'
+                                                  : '$_pending nights')
+                                            : 'Tap to try again',
+                                        style: text.bodyLarge,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_uploading)
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: c.text,
+                                    ),
+                                  )
+                                else
+                                  Icon(Icons.refresh, color: c.text),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
                         AppCard(
                           alt: true,
                           onTap: _latest == null
@@ -371,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             _DockItem(
                               icon: Icons.graphic_eq,
-                              label: 'Sounds',
+                              label: 'Tranquil Tones',
                               onTap: () => _open(AppRoutes.sounds),
                             ),
                           ],

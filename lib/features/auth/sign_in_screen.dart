@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../../app_router.dart';
 import '../../services/user_service.dart';
 import '../../theme/app_theme.dart';
@@ -41,8 +42,8 @@ class _SignInScreenState extends State<SignInScreen> {
       _emailError = email.isEmpty
           ? 'Enter your email address.'
           : emailOk
-              ? null
-              : 'Enter a valid email address.';
+          ? null
+          : 'Enter a valid email address.';
       _passwordError = _password.text.isEmpty ? 'Enter your password.' : null;
     });
 
@@ -59,6 +60,16 @@ class _SignInScreenState extends State<SignInScreen> {
         password: _password.text,
       );
 
+      if (!_userService.isEmailVerified) {
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.verifyEmail,
+          (route) => false,
+        );
+        return;
+      }
+
       final user = await _userService.getUser();
 
       if (user != null) {
@@ -70,7 +81,7 @@ class _SignInScreenState extends State<SignInScreen> {
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoutes.home,
-            (route) => false,
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -135,8 +146,9 @@ class _SignInScreenState extends State<SignInScreen> {
                   children: [
                     TextSpan(
                       text: 'back',
-                      style: text.headlineLarge!
-                          .copyWith(fontStyle: FontStyle.italic),
+                      style: text.headlineLarge!.copyWith(
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                     const TextSpan(text: '.'),
                   ],
@@ -146,8 +158,10 @@ class _SignInScreenState extends State<SignInScreen> {
               const SizedBox(height: 18),
               if (_authError != null) ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: c.surface,
                     borderRadius: BorderRadius.circular(20),
@@ -197,10 +211,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 child: AppButton(
                   label: 'Forgot password?',
                   style: AppButtonStyle.text,
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.forgotPassword,
-                  ),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword),
                 ),
               ),
             ],
