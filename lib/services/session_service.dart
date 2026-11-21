@@ -14,11 +14,12 @@ class SessionService {
         .collection('sleepSessions');
   }
 
-  Future<String> startSession({SessionAlarm? alarm}) async {
+  Future<String> startSession({SessionAlarm? alarm, String? toneId}) async {
     final doc = await _sessions.add({
       'status': 'active',
       'startTime': FieldValue.serverTimestamp(),
       'alarm': alarm?.toMap(),
+      'toneId': toneId,
     });
     return doc.id;
   }
