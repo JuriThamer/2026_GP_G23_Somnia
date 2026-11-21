@@ -7,6 +7,7 @@ import '../../models/alarm.dart';
 import '../../models/app_user.dart';
 import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
+import '../../services/tone_service.dart';
 import '../../services/user_service.dart';
 import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
@@ -116,7 +117,10 @@ class _HomeScreenState extends State<HomeScreen> {
               smart: settings.smart,
               repeats: settings.repeats,
             );
-      final id = await _sessionService.startSession(alarm: alarm);
+      final id = await _sessionService.startSession(
+        alarm: alarm,
+        toneId: ToneService.instance.playingToneId,
+      );
       final sent = await _watchService.startRecording(id, alarm: alarm);
       if (!mounted) return;
       setState(() => _starting = false);
@@ -411,11 +415,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               const SizedBox(width: 36),
-                              _Satellite(
-                                icon: Icons.graphic_eq,
-                                label: 'Sound',
-                                value: 'White noise',
-                                onTap: () => _open(AppRoutes.sounds),
+                              ListenableBuilder(
+                                listenable: ToneService.instance,
+                                builder: (context, _) {
+                                  final tones = ToneService.instance;
+                                  final playing = tones.isPlaying
+                                      ? tones.currentTone
+                                      : null;
+                                  return _Satellite(
+                                    icon: Icons.graphic_eq,
+                                    label: 'Tone',
+                                    value: playing?.title ?? 'Off',
+                                    onTap: () => _open(AppRoutes.sounds),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -526,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             _DockItem(
                               icon: Icons.graphic_eq,
-                              label: 'Sounds',
+                              label: 'Tranquil Tones',
                               onTap: () => _open(AppRoutes.sounds),
                             ),
                           ],

@@ -44,14 +44,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _changeTheme(bool isDark) async {
     final mode = isDark ? 'dark' : 'light';
 
-    // Change immediately in the app.
     setThemeMode(mode);
 
     setState(() {
       _isDarkMode = isDark;
     });
 
-    // Save the selected theme in Firestore.
     await _userService.updateTheme(mode);
   }
 
@@ -63,7 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.welcome,
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -75,21 +73,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_loading) {
       return Scaffold(
         body: Container(
-          decoration: BoxDecoration(
-            gradient: colors.gradient,
-          ),
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
+          decoration: BoxDecoration(gradient: colors.gradient),
+          child: const Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: colors.gradient,
-        ),
+        decoration: BoxDecoration(gradient: colors.gradient),
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(20),
@@ -105,36 +97,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: SizedBox(
                         width: 48,
                         height: 48,
-                        child: Icon(
-                          Icons.chevron_left,
-                          color: colors.text,
-                        ),
+                        child: Icon(Icons.chevron_left, color: colors.text),
                       ),
                     ),
                   ),
 
                   const SizedBox(width: 16),
 
-                  Text(
-                    'Settings',
-                    style: text.headlineLarge,
-                  ),
+                  Text('Settings', style: text.headlineLarge),
                 ],
               ),
 
               const SizedBox(height: 8),
 
-              Text(
-                'Manage your Somnia preferences',
-                style: text.bodySmall,
-              ),
+              Text('Manage your Somnia preferences', style: text.bodySmall),
 
               const SizedBox(height: 28),
 
-              Text(
-                'APPEARANCE',
-                style: text.labelSmall,
-              ),
+              Text('APPEARANCE', style: text.labelSmall),
 
               const SizedBox(height: 12),
 
@@ -154,10 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Dark mode',
-                            style: text.bodyLarge,
-                          ),
+                          Text('Dark mode', style: text.bodyLarge),
                           const SizedBox(height: 4),
                           Text(
                             _isDarkMode
@@ -169,47 +146,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
 
-                    Switch(
-                      value: _isDarkMode,
-                      onChanged: _changeTheme,
-                    ),
+                    Switch(value: _isDarkMode, onChanged: _changeTheme),
                   ],
                 ),
               ),
 
               const SizedBox(height: 28),
 
-              Text(
-                'ACCOUNT',
-                style: text.labelSmall,
-              ),
+              Text('ACCOUNT', style: text.labelSmall),
 
               const SizedBox(height: 12),
 
               AppCard(
                 onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.profile,
-                  );
+                  Navigator.pushNamed(context, AppRoutes.profile);
                 },
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.person_outline,
-                      color: colors.text,
-                    ),
+                    Icon(Icons.person_outline, color: colors.text),
                     const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        'Profile',
-                        style: text.bodyLarge,
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: colors.muted,
-                    ),
+                    Expanded(child: Text('Profile', style: text.bodyLarge)),
+                    Icon(Icons.chevron_right, color: colors.muted),
                   ],
                 ),
               ),
@@ -218,65 +175,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               AppCard(
                 onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.editProfile,
-                  );
+                  Navigator.pushNamed(context, AppRoutes.editProfile);
                 },
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.edit_outlined,
-                      color: colors.text,
-                    ),
+                    Icon(Icons.edit_outlined, color: colors.text),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
-                        'Edit profile',
-                        style: text.bodyLarge,
-                      ),
+                      child: Text('Edit profile', style: text.bodyLarge),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: colors.muted,
-                    ),
+                    Icon(Icons.chevron_right, color: colors.muted),
                   ],
                 ),
               ),
 
               const SizedBox(height: 28),
 
-              Text(
-                'PREFERENCES',
-                style: text.labelSmall,
-              ),
+              Text('PREFERENCES', style: text.labelSmall),
 
               const SizedBox(height: 12),
 
               AppCard(
                 onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.watch,
-                  );
+                  Navigator.pushNamed(context, AppRoutes.watch);
                 },
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.watch_outlined,
-                      color: colors.text,
-                    ),
+                    Icon(Icons.watch_outlined, color: colors.text),
                     const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        'Watch',
-                        style: text.bodyLarge,
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: colors.muted,
-                    ),
+                    Expanded(child: Text('Watch', style: text.bodyLarge)),
+                    Icon(Icons.chevron_right, color: colors.muted),
                   ],
                 ),
               ),
@@ -285,28 +213,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               AppCard(
                 onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.sounds,
-                  );
+                  Navigator.pushNamed(context, AppRoutes.sounds);
                 },
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.music_note_outlined,
-                      color: colors.text,
-                    ),
+                    Icon(Icons.music_note_outlined, color: colors.text),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
-                        'Sounds',
-                        style: text.bodyLarge,
-                      ),
+                      child: Text('Tranquil Tones', style: text.bodyLarge),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: colors.muted,
-                    ),
+                    Icon(Icons.chevron_right, color: colors.muted),
                   ],
                 ),
               ),
