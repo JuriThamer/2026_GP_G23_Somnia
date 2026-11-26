@@ -352,7 +352,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                           children: [
                             _RoundButton(
                               icon: Icons.remove,
-                              onTap: repeats > 0
+                              onTap: repeats > 1
                                   ? () => _update(
                                       _draft.copyWith(repeats: repeats - 1),
                                     )
@@ -361,9 +361,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                             SizedBox(
                               width: 120,
                               child: Text(
-                                repeats == 0
-                                    ? 'No repeats'
-                                    : repeats == 1
+                                repeats == 1
                                     ? '1 repeat'
                                     : '$repeats repeats',
                                 style: text.bodyLarge!.copyWith(
