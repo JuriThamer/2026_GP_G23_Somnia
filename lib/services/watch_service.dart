@@ -39,11 +39,17 @@ class WatchService {
     }
   }
 
-  Future<bool> startRecording(String sessionId, {SessionAlarm? alarm}) {
-    return _send(
-      '/somnia/start',
-      alarm == null ? sessionId : alarm.toMessage(sessionId),
-    );
+  Future<bool> startRecording(String sessionId, {SessionAlarm? alarm}) async {
+    try {
+      final ok = await _channel.invokeMethod<bool>('startAndWait', {
+        'path': '/somnia/start',
+        'data': alarm == null ? sessionId : alarm.toMessage(sessionId),
+        'sessionId': sessionId,
+      });
+      return ok ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> stopRecording(String sessionId) {

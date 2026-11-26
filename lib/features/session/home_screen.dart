@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) _load();
   }
 
-  Future<void> _start() async {
+    Future<void> _start() async {
     final active = _active;
     if (active != null) {
       await _open(AppRoutes.activeSession, arguments: active.sessionId);
@@ -105,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     setState(() => _starting = true);
+    String? id;
     try {
       final user = await _userService.getUser();
       final settings = user?.alarm ?? const Alarm();
@@ -117,24 +118,32 @@ class _HomeScreenState extends State<HomeScreen> {
               smart: settings.smart,
               repeats: settings.repeats,
             );
-      final id = await _sessionService.startSession(
-        alarm: alarm,
-        toneId: ToneService.instance.playingToneId,
-      );
+      id = _sessionService.newSessionId();
       final sent = await _watchService.startRecording(id, alarm: alarm);
-      if (!mounted) return;
-      setState(() => _starting = false);
       if (!sent) {
+        _watchService.stopRecording(id);
+        if (!mounted) return;
+        setState(() => _starting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not reach the watch. Recording did not start.',
+              'Could not start the session on your watch. Keep it nearby with Bluetooth on and try again.',
             ),
           ),
         );
+        _checkWatch();
+        return;
       }
+      await _sessionService.startSession(
+        sessionId: id,
+        alarm: alarm,
+        toneId: ToneService.instance.playingToneId,
+      );
+      if (!mounted) return;
+      setState(() => _starting = false);
       await _open(AppRoutes.activeSession, arguments: id);
     } catch (_) {
+      if (id != null) _watchService.stopRecording(id);
       if (!mounted) return;
       setState(() => _starting = false);
       ScaffoldMessenger.of(context).showSnackBar(

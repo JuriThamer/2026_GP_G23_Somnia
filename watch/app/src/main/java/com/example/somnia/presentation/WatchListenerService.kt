@@ -14,12 +14,14 @@ class WatchListenerService : WearableListenerService() {
     override fun onMessageReceived(event: MessageEvent) {
         val parts = String(event.data).split('|')
         val sessionId = parts[0]
+        val sourceNodeId = event.sourceNodeId
         Handler(Looper.getMainLooper()).post {
             when (event.path) {
                 "/somnia/start" -> {
                     startRecording(sessionId)
                     scheduleAlarm(parts)
                     FileSender.sendPending(applicationContext, sessionId)
+                    confirmStarted(sessionId, sourceNodeId, 0)
                 }
                 "/somnia/stop" -> {
                     AlarmScheduler.cancel(applicationContext)
@@ -29,6 +31,20 @@ class WatchListenerService : WearableListenerService() {
                 "/somnia/ack" -> deleteSession(sessionId)
             }
         }
+    }
+
+    private fun confirmStarted(sessionId: String, nodeId: String, attempt: Int) {
+        val context = applicationContext
+        val reader = SensorReader.shared(context)
+        if (reader.state.recording && reader.sessionId == sessionId) {
+            Wearable.getMessageClient(context)
+                .sendMessage(nodeId, "/somnia/started", sessionId.toByteArray())
+            return
+        }
+        if (attempt >= 20) return
+        Handler(Looper.getMainLooper()).postDelayed({
+            confirmStarted(sessionId, nodeId, attempt + 1)
+        }, 500)
     }
 
     private fun scheduleAlarm(parts: List<String>) {
