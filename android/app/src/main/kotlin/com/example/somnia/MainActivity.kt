@@ -43,17 +43,24 @@ class MainActivity : AudioServiceActivity() {
                         val path = call.argument<String>("path") ?: ""
                         val data = call.argument<String>("data") ?: ""
                         val sessionId = call.argument<String>("sessionId") ?: ""
-                        startAndWait(path, data, sessionId) { ok -> result.success(ok) }
+                        sendAndWait(path, data, sessionId, "/somnia/started") { ok -> result.success(ok) }
+                    }
+                    "stopAndWait" -> {
+                        val path = call.argument<String>("path") ?: ""
+                        val data = call.argument<String>("data") ?: ""
+                        val sessionId = call.argument<String>("sessionId") ?: ""
+                        sendAndWait(path, data, sessionId, "/somnia/stopped") { ok -> result.success(ok) }
                     }
                     else -> result.notImplemented()
                 }
             }
     }
 
-    private fun startAndWait(
+    private fun sendAndWait(
         path: String,
         data: String,
         sessionId: String,
+        reply: String,
         onResult: (Boolean) -> Unit
     ) {
         val handler = Handler(Looper.getMainLooper())
@@ -72,7 +79,7 @@ class MainActivity : AudioServiceActivity() {
         }
 
         listener = MessageClient.OnMessageReceivedListener { event ->
-            if (event.path == "/somnia/started" && String(event.data) == sessionId) {
+            if (event.path == reply && String(event.data) == sessionId) {
                 finish(true)
             }
         }

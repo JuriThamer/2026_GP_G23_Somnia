@@ -27,23 +27,16 @@ class WatchService {
     }
   }
 
-  Future<bool> _send(String path, String data) async {
+  Future<bool> _sendAndWait(
+    String method,
+    String path,
+    String data,
+    String sessionId,
+  ) async {
     try {
-      final ok = await _channel.invokeMethod<bool>('send', {
+      final ok = await _channel.invokeMethod<bool>(method, {
         'path': path,
         'data': data,
-      });
-      return ok ?? false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> startRecording(String sessionId, {SessionAlarm? alarm}) async {
-    try {
-      final ok = await _channel.invokeMethod<bool>('startAndWait', {
-        'path': '/somnia/start',
-        'data': alarm == null ? sessionId : alarm.toMessage(sessionId),
         'sessionId': sessionId,
       });
       return ok ?? false;
@@ -52,7 +45,16 @@ class WatchService {
     }
   }
 
+  Future<bool> startRecording(String sessionId, {SessionAlarm? alarm}) {
+    return _sendAndWait(
+      'startAndWait',
+      '/somnia/start',
+      alarm == null ? sessionId : alarm.toMessage(sessionId),
+      sessionId,
+    );
+  }
+
   Future<bool> stopRecording(String sessionId) {
-    return _send('/somnia/stop', sessionId);
+    return _sendAndWait('stopAndWait', '/somnia/stop', sessionId, sessionId);
   }
 }

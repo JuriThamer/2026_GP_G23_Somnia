@@ -25,7 +25,7 @@ class WatchListenerService : WearableListenerService() {
                 }
                 "/somnia/stop" -> {
                     AlarmScheduler.cancel(applicationContext)
-                    stopRecording()
+                    stopRecording(sessionId, sourceNodeId)
                 }
                 "/somnia/alarm" -> AlarmScheduler.ringNow(applicationContext)
                 "/somnia/ack" -> deleteSession(sessionId)
@@ -94,9 +94,11 @@ class WatchListenerService : WearableListenerService() {
         }
     }
 
-    private fun stopRecording() {
+    private fun stopRecording(sessionId: String, nodeId: String) {
         val context = applicationContext
         SensorReader.shared(context).stop { folder ->
+            Wearable.getMessageClient(context)
+                .sendMessage(nodeId, "/somnia/stopped", sessionId.toByteArray())
             if (folder == null) {
                 RecordingService.stop(context)
             } else {

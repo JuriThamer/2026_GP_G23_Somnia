@@ -208,11 +208,18 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       _error = null;
     });
 
-    try {
-      _sessionService.endSession(_sessionId!).catchError((_) {});
-      await _watchService.stopRecording(_sessionId!);
-      _timer?.cancel();
+        try {
+      final stopped = await _watchService.stopRecording(_sessionId!);
       if (!mounted) return;
+      if (!stopped) {
+        setState(() {
+          _ending = false;
+          _error = 'The session could not be ended, so it is still open. Check your connection and try again.';
+        });
+        return;
+      }
+      _sessionService.endSession(_sessionId!).catchError((_) {});
+      _timer?.cancel();
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.questionnaire,
