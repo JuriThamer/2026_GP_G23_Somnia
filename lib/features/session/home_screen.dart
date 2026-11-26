@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) _load();
   }
 
-    Future<void> _start() async {
+  Future<void> _start() async {
     final active = _active;
     if (active != null) {
       await _open(AppRoutes.activeSession, arguments: active.sessionId);
@@ -277,44 +277,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Material(
-                                color: c.surfaceAlt,
-                                shape: const StadiumBorder(),
-                                child: InkWell(
-                                  customBorder: const StadiumBorder(),
-                                  onTap: () => _open(AppRoutes.watch),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.watch_outlined,
-                                          size: 18,
-                                          color: c.text,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          connected
-                                              ? 'Connected'
-                                              : 'Not connected',
-                                          style: text.bodySmall!.copyWith(
-                                            color: connected
-                                                ? c.success
-                                                : c.warning,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
                               Material(
                                 color: c.surfaceAlt,
                                 shape: const CircleBorder(),

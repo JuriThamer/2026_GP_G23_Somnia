@@ -59,7 +59,7 @@ class WatchListenerService : WearableListenerService() {
             reader.clearWindow()
             return
         }
-        AlarmScheduler.schedule(context, wakeAt, repeats)
+        AlarmScheduler.schedule(context, wakeAt, repeats, smart)
         if (smart && window > 0) {
             reader.setWindow(wakeAt - window * 60 * 1000L, wakeAt)
         } else {
