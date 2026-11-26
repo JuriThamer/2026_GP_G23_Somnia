@@ -7,10 +7,10 @@ from firebase_functions import https_fn
 initialize_app()
 
 ACTIVITY_THRESHOLD = 40
+RAW_PER_G = 4096.0
 
 
 def motion_activity(text):
-    previous = None
     total = 0.0
     count = 0
     for line in text.split("\n"):
@@ -23,12 +23,10 @@ def motion_activity(text):
             z = float(parts[3])
         except ValueError:
             continue
-        magnitude = math.sqrt(x * x + y * y + z * z)
-        if previous is not None:
-            total += abs(magnitude - previous)
-            count += 1
-        previous = magnitude
-    return total / count if count > 0 else 0.0
+        magnitude = math.sqrt(x * x + y * y + z * z) / RAW_PER_G
+        total += max(0.0, magnitude - 1.0)
+        count += 1
+    return 1000.0 * total / count if count > 0 else 0.0
 
 
 def heart_rate(text):
@@ -85,7 +83,7 @@ def check_epoch(req: https_fn.CallableRequest) -> dict:
 
     db = firestore.client()
     session = db.collection("users").document(req.auth.uid).collection("sleepSessions").document(session_id)
-    epochs = session.collection("wakeWindowEpochs")     
+    epochs = session.collection("wakeWindowEpochs")
     snapshot = epochs.document(str(index).zfill(4)).get()
     if not snapshot.exists:
         return {"wake": False, "activity": None, "hr": None}
