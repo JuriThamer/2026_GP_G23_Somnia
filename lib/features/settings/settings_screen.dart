@@ -189,44 +189,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
 
-              const SizedBox(height: 28),
-
-              Text('PREFERENCES', style: text.labelSmall),
-
-              const SizedBox(height: 12),
-
-              AppCard(
-                onTap: () {
-                  Navigator.pushNamed(context, AppRoutes.watch);
-                },
-                child: Row(
-                  children: [
-                    Icon(Icons.watch_outlined, color: colors.text),
-                    const SizedBox(width: 16),
-                    Expanded(child: Text('Watch', style: text.bodyLarge)),
-                    Icon(Icons.chevron_right, color: colors.muted),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              AppCard(
-                onTap: () {
-                  Navigator.pushNamed(context, AppRoutes.sounds);
-                },
-                child: Row(
-                  children: [
-                    Icon(Icons.music_note_outlined, color: colors.text),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text('Tranquil Tones', style: text.bodyLarge),
-                    ),
-                    Icon(Icons.chevron_right, color: colors.muted),
-                  ],
-                ),
-              ),
-
               const SizedBox(height: 32),
 
               AppButton(
