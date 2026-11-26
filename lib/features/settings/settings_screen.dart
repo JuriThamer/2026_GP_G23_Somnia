@@ -110,8 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 8),
 
-              Text('Manage your Somnia preferences', style: text.bodySmall),
-
+              Text('Manage your account and appearance', style: text.bodySmall),
               const SizedBox(height: 28),
 
               Text('APPEARANCE', style: text.labelSmall),
