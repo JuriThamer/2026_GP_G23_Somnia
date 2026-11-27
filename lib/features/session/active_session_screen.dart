@@ -18,13 +18,16 @@ class ActiveSessionScreen extends StatefulWidget {
   State<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
 }
 
-class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
+class _ActiveSessionScreenState extends State<ActiveSessionScreen>
+    with WidgetsBindingObserver {
   final _userService = UserService();
   final _sessionService = SessionService();
   final _watchService = WatchService();
 
   Stream<AppUser?>? _userStream;
   Timer? _timer;
+  Timer? _watchTimer;
+  DateTime? _lostUntil;
   String? _sessionId;
   DateTime? _start;
   Duration _elapsed = Duration.zero;
@@ -35,6 +38,37 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   WatchInfo? _found;
   SessionAlarm? _alarm;
   bool _checked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_sessionId == null) return;
+    if (state == AppLifecycleState.resumed) {
+      _checkWatch();
+      _startWatchTimer();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _stopWatchTimer();
+    }
+  }
+
+  void _startWatchTimer() {
+    _watchTimer?.cancel();
+    _watchTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _checkWatch(),
+    );
+  }
+
+  void _stopWatchTimer() {
+    _watchTimer?.cancel();
+    _watchTimer = null;
+  }
 
   @override
   void didChangeDependencies() {
@@ -74,8 +108,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() => _elapsed = DateTime.now().difference(_start!));
-        if (_elapsed.inSeconds % 15 == 0) _checkWatch();
       });
+      _startWatchTimer();
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -85,6 +119,12 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Future<void> _checkWatch() async {
     final found = await _watchService.findWatch();
     if (!mounted) return;
+    final lostUntil = _lostUntil;
+    if (found != null &&
+        lostUntil != null &&
+        DateTime.now().isBefore(lostUntil)) {
+      return;
+    }
     setState(() {
       _found = found;
       _checked = true;
@@ -93,7 +133,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _stopWatchTimer();
     super.dispose();
   }
 
@@ -208,18 +250,22 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       _error = null;
     });
 
-        try {
+    try {
       final stopped = await _watchService.stopRecording(_sessionId!);
       if (!mounted) return;
       if (!stopped) {
         setState(() {
           _ending = false;
+          _found = null;
+          _checked = true;
+          _lostUntil = DateTime.now().add(const Duration(seconds: 20));
           _error = 'The session could not be ended, so it is still open. Check your connection and try again.';
         });
         return;
       }
       _sessionService.endSession(_sessionId!).catchError((_) {});
       _timer?.cancel();
+      _stopWatchTimer();
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.questionnaire,
@@ -402,7 +448,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    connected ? 'Connected' : 'Connection lost',
+                                    connected ? 'Connected' : 'Out of reach',
                                     style: text.bodyMedium!.copyWith(
                                       color: color,
                                       fontWeight: FontWeight.w600,
