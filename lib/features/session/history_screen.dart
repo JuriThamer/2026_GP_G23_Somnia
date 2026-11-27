@@ -5,6 +5,7 @@ import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -107,6 +108,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(current: NavTab.history),
       body: Container(
         decoration: BoxDecoration(
           gradient: c.gradient,
@@ -141,7 +143,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    const SettingsAvatar(),
                   ],
                 ),
               ),

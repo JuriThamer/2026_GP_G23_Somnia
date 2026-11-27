@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class WatchScreen extends StatefulWidget {
   const WatchScreen({super.key});
@@ -86,7 +87,7 @@ class _WatchScreenState extends State<WatchScreen> {
                 ),
                 style: text.headlineLarge,
               ),
-                           const SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
                 'Possible problems and how to solve them.',
                 style: text.bodyMedium!.copyWith(color: c.muted),
@@ -168,7 +169,7 @@ class _WatchScreenState extends State<WatchScreen> {
     }
   }
 
-   Future<void> _connect() async {
+  Future<void> _connect() async {
     setState(() {
       _error = null;
       _busy = 'searching';
@@ -213,6 +214,7 @@ class _WatchScreenState extends State<WatchScreen> {
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(),
       body: Container(
         decoration: BoxDecoration(gradient: c.gradient),
         child: SafeArea(
@@ -285,7 +287,7 @@ class _WatchScreenState extends State<WatchScreen> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(width: 48),
+                        const SettingsAvatar(),
                       ],
                     ),
                     const SizedBox(height: 40),
@@ -305,18 +307,18 @@ class _WatchScreenState extends State<WatchScreen> {
                         child: Center(
                           child: busy
                               ? SizedBox(
-                                  width: 44,
-                                  height: 44,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: c.primary,
-                                  ),
-                                )
+                            width: 44,
+                            height: 44,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              color: c.primary,
+                            ),
+                          )
                               : Icon(
-                                  Icons.watch_outlined,
-                                  size: 64,
-                                  color: c.text,
-                                ),
+                            Icons.watch_outlined,
+                            size: 64,
+                            color: c.text,
+                          ),
                         ),
                       ),
                     ),

@@ -6,6 +6,7 @@ import '../../theme/theme_controller.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../app_router.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -61,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.welcome,
-      (route) => false,
+          (route) => false,
     );
   }
 
@@ -80,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(),
       body: Container(
         decoration: BoxDecoration(gradient: colors.gradient),
         child: SafeArea(

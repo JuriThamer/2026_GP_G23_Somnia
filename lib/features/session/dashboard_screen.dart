@@ -4,6 +4,7 @@ import '../../models/sleep_session.dart';
 import '../../services/session_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -134,6 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final c = context.colors;
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(current: NavTab.dashboard),
       body: Container(
         decoration: BoxDecoration(gradient: c.gradient),
         child: SafeArea(
@@ -149,16 +151,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     : _session == null
                     ? const _EmptyState()
                     : RefreshIndicator(
-                        onRefresh: _load,
-                        color: c.primary,
-                        child: _DashboardContent(
-                          session: _session!,
-                          duration: _duration,
-                          date: _date,
-                          time: _time,
-                          stageName: _stageName,
-                        ),
-                      ),
+                  onRefresh: _load,
+                  color: c.primary,
+                  child: _DashboardContent(
+                    session: _session!,
+                    duration: _duration,
+                    date: _date,
+                    time: _time,
+                    stageName: _stageName,
+                  ),
+                ),
               ),
             ],
           ),
@@ -198,7 +200,7 @@ class _Header extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 48),
+          const SettingsAvatar(),
         ],
       ),
     );
@@ -383,55 +385,55 @@ class _DashboardContent extends StatelessWidget {
           alt: true,
           child: summary.stages.isEmpty
               ? SizedBox(
-                  height: 180,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.bar_chart_rounded, size: 42, color: c.muted),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Sleep stage results are not ready yet',
-                        style: text.titleMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Your Light and Deep sleep data will appear here after analysis.',
-                        style: text.bodySmall,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  children: summary.stages.entries.map((entry) {
-                    final stage = entry.value;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              stageName(entry.key),
-                              style: text.bodyLarge,
-                            ),
-                          ),
-                          Text(duration(stage.minutes), style: text.bodyMedium),
-                          const SizedBox(width: 12),
-                          SizedBox(
-                            width: 48,
-                            child: Text(
-                              '${stage.percent}%',
-                              textAlign: TextAlign.end,
-                              style: text.bodyMedium,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+            height: 180,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bar_chart_rounded, size: 42, color: c.muted),
+                const SizedBox(height: 12),
+                Text(
+                  'Sleep stage results are not ready yet',
+                  style: text.titleMedium,
+                  textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  'Your Light and Deep sleep data will appear here after analysis.',
+                  style: text.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+              : Column(
+            children: summary.stages.entries.map((entry) {
+              final stage = entry.value;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        stageName(entry.key),
+                        style: text.bodyLarge,
+                      ),
+                    ),
+                    Text(duration(stage.minutes), style: text.bodyMedium),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 48,
+                      child: Text(
+                        '${stage.percent}%',
+                        textAlign: TextAlign.end,
+                        style: text.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
         ),
 
         if (restReview != null) ...[
@@ -454,7 +456,7 @@ class _DashboardContent extends StatelessWidget {
                 _AnswerRow(
                   title: 'Heavy or slow after waking',
                   value:
-                      RestReview.sleepInertiaOptions[restReview.sleepInertia] ??
+                  RestReview.sleepInertiaOptions[restReview.sleepInertia] ??
                       '—',
                 ),
                 if (restReview.toneRelaxing != null) ...[
@@ -469,7 +471,7 @@ class _DashboardContent extends StatelessWidget {
                   _AnswerRow(
                     title: 'Use this tone again',
                     value:
-                        RestReview.toneReuseOptions[restReview.toneReuse] ??
+                    RestReview.toneReuseOptions[restReview.toneReuse] ??
                         '—',
                   ),
                 ],
@@ -479,8 +481,8 @@ class _DashboardContent extends StatelessWidget {
                   value: restReview.sleepFactors.isEmpty
                       ? '—'
                       : restReview.sleepFactors
-                            .map((f) => RestReview.sleepFactorOptions[f] ?? f)
-                            .join(', '),
+                      .map((f) => RestReview.sleepFactorOptions[f] ?? f)
+                      .join(', '),
                 ),
               ],
             ),
