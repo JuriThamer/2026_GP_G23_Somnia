@@ -116,6 +116,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             onTap: () => setState(() => _toneReuse = entry.key),
           );
         }).toList();
+
       case 5:
         return RestReview.sleepFactorOptions.entries.map((entry) {
           return _Option(
@@ -273,7 +274,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.dashboard,
-      (route) => route.settings.name == AppRoutes.home,
+          (route) => route.settings.name == AppRoutes.home,
       arguments: sessionId,
     );
   }
