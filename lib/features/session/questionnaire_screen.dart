@@ -99,20 +99,6 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 
   List<_Option> get _options {
     switch (_question) {
-      case 1:
-        return List.generate(9, (index) {
-          final value = index + 1;
-          final label = value == 1
-              ? '1 · Extremely alert'
-              : value == 9
-              ? '9 · Extremely sleepy, fighting sleep'
-              : '$value';
-          return _Option(
-            label: label,
-            selected: _sleepiness == value,
-            onTap: () => setState(() => _sleepiness = value),
-          );
-        });
       case 2:
         return RestReview.sleepInertiaOptions.entries.map((entry) {
           return _Option(
@@ -121,20 +107,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             onTap: () => setState(() => _sleepInertia = entry.key),
           );
         }).toList();
-      case 3:
-        return List.generate(5, (index) {
-          final value = index + 1;
-          final label = value == 1
-              ? '1 · Not at all'
-              : value == 5
-              ? '5 · A lot'
-              : '$value';
-          return _Option(
-            label: label,
-            selected: _toneRelaxing == value,
-            onTap: () => setState(() => _toneRelaxing = value),
-          );
-        });
+
       case 4:
         return RestReview.toneReuseOptions.entries.map((entry) {
           return _Option(
@@ -143,6 +116,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             onTap: () => setState(() => _toneReuse = entry.key),
           );
         }).toList();
+
       case 5:
         return RestReview.sleepFactorOptions.entries.map((entry) {
           return _Option(
@@ -151,9 +125,80 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             onTap: () => _toggleFactor(entry.key),
           );
         }).toList();
+
       default:
         return [];
     }
+  }
+
+  Widget _buildRatingSlider({
+    required int min,
+    required int max,
+    required int? value,
+    required String minLabel,
+    required String maxLabel,
+    required ValueChanged<int> onChanged,
+  }) {
+    final c = context.colors;
+    final text = Theme.of(context).textTheme;
+
+    final displayValue = value ?? ((min + max) ~/ 2);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: c.surfaceAlt,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value == null ? 'Select a rating' : '$value / $max',
+            style: text.headlineLarge?.copyWith(
+              color: c.primary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Slider(
+            value: displayValue.toDouble(),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            divisions: max - min,
+            activeColor: c.primary,
+            inactiveColor: c.muted.withOpacity(0.25),
+            onChanged: (newValue) {
+              onChanged(newValue.round());
+            },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(
+                  minLabel,
+                  style: text.bodySmall?.copyWith(
+                    color: c.muted,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  maxLabel,
+                  textAlign: TextAlign.end,
+                  style: text.bodySmall?.copyWith(
+                    color: c.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   void _toggleFactor(String key) {
@@ -229,7 +274,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.dashboard,
-      (route) => route.settings.name == AppRoutes.home,
+          (route) => route.settings.name == AppRoutes.home,
       arguments: sessionId,
     );
   }
@@ -249,152 +294,178 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
           decoration: BoxDecoration(gradient: c.gradient),
           child: SafeArea(
             child: _loading
-                ? Center(child: CircularProgressIndicator(color: c.primary))
+                ? Center(
+              child: CircularProgressIndicator(color: c.primary),
+            )
                 : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Row(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                        child: Row(
-                          children: [
-                            _step > 0
-                                ? Material(
-                                    color: c.surfaceAlt,
-                                    shape: const CircleBorder(),
-                                    child: InkWell(
-                                      customBorder: const CircleBorder(),
-                                      onTap: _previous,
-                                      child: SizedBox(
-                                        width: 48,
-                                        height: 48,
-                                        child: Icon(
-                                          Icons.chevron_left,
-                                          color: c.text,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : const SizedBox(width: 48),
-                            Expanded(
-                              child: Text(
-                                'REST REVIEW',
-                                style: text.labelSmall,
-                                textAlign: TextAlign.center,
-                              ),
+                      _step > 0
+                          ? Material(
+                        color: c.surfaceAlt,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _previous,
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Icon(
+                              Icons.chevron_left,
+                              color: c.text,
                             ),
-                            const SizedBox(width: 48),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_questions.length, (index) {
-                          final active = index == _step;
-                          final completed = index < _step;
-
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: active ? 28 : 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: active || completed
-                                  ? c.primary
-                                  : c.surfaceAlt,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Question ${_step + 1} of ${_questions.length}',
-                        style: text.bodySmall?.copyWith(color: c.muted),
-                      ),
+                      )
+                          : const SizedBox(width: 48),
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Center(
-                                child: Container(
-                                  width: 92,
-                                  height: 92,
-                                  decoration: BoxDecoration(
-                                    color: c.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.nightlight_round,
-                                    size: 44,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-                              Center(
-                                child: Text(
-                                  'How did you sleep?',
-                                  style: text.headlineLarge,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Center(
-                                child: Text(
-                                  _questionText,
-                                  style: text.titleMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              if (_question == 5) ...[
-                                const SizedBox(height: 6),
-                                Center(
-                                  child: Text(
-                                    'Select all that apply.',
-                                    style: text.bodySmall?.copyWith(
-                                      color: c.muted,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 28),
-                              ..._options.map(
-                                (option) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _OptionTile(
-                                    label: option.label,
-                                    selected: option.selected,
-                                    multiSelect: _question == 5,
-                                    onTap: option.onTap,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        child: Text(
+                          'REST REVIEW',
+                          style: text.labelSmall,
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                        decoration: BoxDecoration(
-                          color: c.surface,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(32),
-                          ),
-                        ),
-                        child: AppButton(
-                          label: _isLastStep ? 'Submit' : 'Next',
-                          loading: false,
-                          onPressed: _next,
-                        ),
-                      ),
+                      const SizedBox(width: 48),
                     ],
                   ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_questions.length, (index) {
+                    final active = index == _step;
+                    final completed = index < _step;
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: active ? 28 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: active || completed
+                            ? c.primary
+                            : c.surfaceAlt,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Question ${_step + 1} of ${_questions.length}',
+                  style: text.bodySmall?.copyWith(color: c.muted),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 92,
+                            height: 92,
+                            decoration: BoxDecoration(
+                              color: c.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.nightlight_round,
+                              size: 44,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        Center(
+                          child: Text(
+                            'How did you sleep?',
+                            style: text.headlineLarge,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: Text(
+                            _questionText,
+                            style: text.titleMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        if (_question == 5) ...[
+                          const SizedBox(height: 6),
+                          Center(
+                            child: Text(
+                              'Select all that apply.',
+                              style: text.bodySmall?.copyWith(
+                                color: c.muted,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 28),
+
+                        if (_question == 1)
+                          _buildRatingSlider(
+                            min: 1,
+                            max: 9,
+                            value: _sleepiness,
+                            minLabel: 'Extremely alert',
+                            maxLabel: 'Extremely sleepy',
+                            onChanged: (value) {
+                              setState(() => _sleepiness = value);
+                            },
+                          )
+                        else if (_question == 3)
+                          _buildRatingSlider(
+                            min: 1,
+                            max: 5,
+                            value: _toneRelaxing,
+                            minLabel: 'Not at all',
+                            maxLabel: 'A lot',
+                            onChanged: (value) {
+                              setState(() => _toneRelaxing = value);
+                            },
+                          )
+                        else
+                          ..._options.map(
+                                (option) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _OptionTile(
+                                label: option.label,
+                                selected: option.selected,
+                                multiSelect: _question == 5,
+                                onTap: option.onTap,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                  decoration: BoxDecoration(
+                    color: c.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(32),
+                    ),
+                  ),
+                  child: AppButton(
+                    label: _isLastStep ? 'Submit' : 'Next',
+                    loading: false,
+                    onPressed: _next,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -456,40 +527,40 @@ class _OptionTile extends StatelessWidget {
               ),
               multiSelect
                   ? Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: borderColor, width: 2),
-                      ),
-                      child: selected
-                          ? Icon(
-                              Icons.check,
-                              size: 16,
-                              color: selectedTextColor,
-                            )
-                          : null,
-                    )
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: borderColor, width: 2),
+                ),
+                child: selected
+                    ? Icon(
+                  Icons.check,
+                  size: 16,
+                  color: selectedTextColor,
+                )
+                    : null,
+              )
                   : Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor, width: 2),
-                      ),
-                      child: selected
-                          ? Center(
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: selectedTextColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            )
-                          : null,
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 2),
+                ),
+                child: selected
+                    ? Center(
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: selectedTextColor,
+                      shape: BoxShape.circle,
                     ),
+                  ),
+                )
+                    : null,
+              ),
             ],
           ),
         ),
