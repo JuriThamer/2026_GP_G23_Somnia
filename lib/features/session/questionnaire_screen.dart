@@ -99,20 +99,6 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 
   List<_Option> get _options {
     switch (_question) {
-      case 1:
-        return List.generate(9, (index) {
-          final value = index + 1;
-          final label = value == 1
-              ? '1 · Extremely alert'
-              : value == 9
-              ? '9 · Extremely sleepy, fighting sleep'
-              : '$value';
-          return _Option(
-            label: label,
-            selected: _sleepiness == value,
-            onTap: () => setState(() => _sleepiness = value),
-          );
-        });
       case 2:
         return RestReview.sleepInertiaOptions.entries.map((entry) {
           return _Option(
