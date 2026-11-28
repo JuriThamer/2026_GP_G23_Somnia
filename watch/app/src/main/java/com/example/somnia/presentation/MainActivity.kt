@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
             arrayOf(
                 "android.permission.health.READ_HEART_RATE",
                 "android.permission.health.READ_SKIN_TEMPERATURE",
+                "com.samsung.android.hardware.sensormanager.permission.READ_ADDITIONAL_HEALTH_DATA",
                 Manifest.permission.ACTIVITY_RECOGNITION,
             )
         } else {

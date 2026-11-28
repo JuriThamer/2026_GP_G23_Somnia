@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../../services/watch_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class WatchScreen extends StatefulWidget {
   const WatchScreen({super.key});
@@ -49,54 +50,15 @@ class _WatchScreenState extends State<WatchScreen> {
     });
   }
 
-  Future<void> _connect() async {
-    setState(() {
-      _error = null;
-      _busy = 'searching';
-    });
-    final found = await _watchService.findWatch();
-    if (!mounted) return;
-    if (found == null) {
-      setState(() {
-        _found = null;
-        _busy = null;
-        _error = 'We could not find your watch. Check that it is switched on, nearby, that Bluetooth is on and that the Somnia watch app is installed, then try again.';
-      });
-      return;
-    }
-    setState(() {
-      _found = found;
-      _busy = 'connecting';
-    });
+  static const _problems = [
+    ['The watch is off or the battery is low', 'Turn on the watch and charge it.'],
+    ['The watch is too far from the phone', 'Keep the watch close to your phone.'],
+    ['Bluetooth is off on the phone', 'Turn on Bluetooth.'],
+    ['The watch is not paired with the phone', 'Pair it using the Galaxy Wearable app.'],
+    ['The Somnia app is not installed on the watch', 'Install the Somnia app on the watch.'],
+  ];
 
-    try {
-      await _userService.updateWatch({
-        'deviceId': found.id,
-        'model': found.name,
-        'connectedAt': Timestamp.now(),
-      });
-      if (!mounted) return;
-      setState(() => _busy = null);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _busy = null;
-        _error = 'We could not connect to your watch. Check that it is switched on, nearby, and that Bluetooth is on, then try again.';
-      });
-    }
-  }
-
-  Future<void> _disconnect() async {
-    setState(() => _error = null);
-    try {
-      await _userService.updateWatch(null);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _error = 'Could not disconnect. Please try again.');
-    }
-  }
-
-  void _showHelp() {
+  void _showHelp({bool retry = false}) {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
 
@@ -125,24 +87,125 @@ class _WatchScreenState extends State<WatchScreen> {
                 ),
                 style: text.headlineLarge,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 6),
               Text(
-                '1. Make sure your Galaxy Watch7 is switched on and charged.\n'
-                '2. Keep the watch close to your phone.\n'
-                '3. Check that Bluetooth is turned on.\n'
-                '4. Wear the watch snugly on your wrist, then tap Connect again.',
+                'Possible problems and how to solve them.',
                 style: text.bodyMedium!.copyWith(color: c.muted),
               ),
-              const SizedBox(height: 20),
-              AppButton(
-                label: 'Got it',
-                onPressed: () => Navigator.pop(dialogContext),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final problem in _problems)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: c.surfaceAlt,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('PROBLEM', style: text.labelSmall),
+                              const SizedBox(height: 4),
+                              Text(
+                                problem[0],
+                                style: text.bodyMedium!.copyWith(
+                                  color: c.text,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text('SOLUTION', style: text.labelSmall),
+                              const SizedBox(height: 4),
+                              Text(
+                                problem[1],
+                                style: text.bodyMedium!.copyWith(color: c.text),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
+              const SizedBox(height: 6),
+              if (retry) ...[
+                AppButton(
+                  label: 'Try Again',
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _connect();
+                  },
+                ),
+                const SizedBox(height: 10),
+                AppButton(
+                  label: 'Close',
+                  style: AppButtonStyle.secondary,
+                  onPressed: () => Navigator.pop(dialogContext),
+                ),
+              ] else
+                AppButton(
+                  label: 'Got it',
+                  onPressed: () => Navigator.pop(dialogContext),
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _disconnect() async {
+    setState(() => _error = null);
+    try {
+      await _userService.updateWatch(null);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Could not disconnect. Please try again.');
+    }
+  }
+
+  Future<void> _connect() async {
+    setState(() {
+      _error = null;
+      _busy = 'searching';
+    });
+    final found = await _watchService.findWatch();
+    if (!mounted) return;
+    if (found == null) {
+      setState(() {
+        _found = null;
+        _busy = null;
+        _error = 'We could not find your watch. Check that it is switched on, nearby, that Bluetooth is on and that the Somnia watch app is installed, then try again.';
+      });
+      _showHelp(retry: true);
+      return;
+    }
+    setState(() {
+      _found = found;
+      _busy = 'connecting';
+    });
+
+    try {
+      await _userService.updateWatch({
+        'deviceId': found.id,
+        'model': found.name,
+        'connectedAt': Timestamp.now(),
+      });
+      if (!mounted) return;
+      setState(() => _busy = null);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = null;
+        _error = 'We could not connect to your watch. Check that it is switched on, nearby, and that Bluetooth is on, then try again.';
+      });
+      _showHelp(retry: true);
+    }
   }
 
   @override
@@ -151,6 +214,7 @@ class _WatchScreenState extends State<WatchScreen> {
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(),
       body: Container(
         decoration: BoxDecoration(gradient: c.gradient),
         child: SafeArea(
@@ -223,7 +287,7 @@ class _WatchScreenState extends State<WatchScreen> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(width: 48),
+                        const SettingsAvatar(),
                       ],
                     ),
                     const SizedBox(height: 40),
@@ -243,18 +307,18 @@ class _WatchScreenState extends State<WatchScreen> {
                         child: Center(
                           child: busy
                               ? SizedBox(
-                                  width: 44,
-                                  height: 44,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: c.primary,
-                                  ),
-                                )
+                            width: 44,
+                            height: 44,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              color: c.primary,
+                            ),
+                          )
                               : Icon(
-                                  Icons.watch_outlined,
-                                  size: 64,
-                                  color: c.text,
-                                ),
+                            Icons.watch_outlined,
+                            size: 64,
+                            color: c.text,
+                          ),
                         ),
                       ),
                     ),

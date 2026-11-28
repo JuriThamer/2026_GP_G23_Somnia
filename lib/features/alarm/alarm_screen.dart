@@ -4,6 +4,7 @@ import '../../models/alarm.dart';
 import '../../services/user_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class AlarmScreen extends StatefulWidget {
   const AlarmScreen({super.key});
@@ -108,22 +109,22 @@ class _AlarmScreenState extends State<AlarmScreen> {
             letterSpacing: 2,
           ),
           hourMinuteColor: WidgetStateColor.resolveWith(
-            (states) => pick(states, c.primary, c.surfaceAlt),
+                (states) => pick(states, c.primary, c.surfaceAlt),
           ),
           hourMinuteTextColor: WidgetStateColor.resolveWith(
-            (states) => pick(states, c.background, c.text),
+                (states) => pick(states, c.background, c.text),
           ),
           dayPeriodColor: WidgetStateColor.resolveWith(
-            (states) => pick(states, c.primary, Colors.transparent),
+                (states) => pick(states, c.primary, Colors.transparent),
           ),
           dayPeriodTextColor: WidgetStateColor.resolveWith(
-            (states) => pick(states, c.background, c.text),
+                (states) => pick(states, c.background, c.text),
           ),
           dayPeriodBorderSide: BorderSide(color: c.surfaceAlt, width: 1.5),
           dialBackgroundColor: c.surfaceAlt,
           dialHandColor: c.primary,
           dialTextColor: WidgetStateColor.resolveWith(
-            (states) => pick(states, c.background, c.text),
+                (states) => pick(states, c.background, c.text),
           ),
           entryModeIconColor: c.muted,
         ),
@@ -180,6 +181,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
     final repeats = _draft.repeats;
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(),
       body: Container(
         decoration: BoxDecoration(gradient: c.gradient),
         child: SafeArea(
@@ -209,7 +211,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    const SettingsAvatar(),
                   ],
                 ),
               ),
@@ -255,14 +257,14 @@ class _AlarmScreenState extends State<AlarmScreen> {
                               onChanged: (value) =>
                                   _update(_draft.copyWith(smart: value)),
                               thumbColor: WidgetStateProperty.resolveWith(
-                                (states) =>
-                                    states.contains(WidgetState.selected)
+                                    (states) =>
+                                states.contains(WidgetState.selected)
                                     ? c.background
                                     : c.muted,
                               ),
                               trackColor: WidgetStateProperty.resolveWith(
-                                (states) =>
-                                    states.contains(WidgetState.selected)
+                                    (states) =>
+                                states.contains(WidgetState.selected)
                                     ? c.primary
                                     : c.surfaceAlt,
                               ),
@@ -352,18 +354,16 @@ class _AlarmScreenState extends State<AlarmScreen> {
                           children: [
                             _RoundButton(
                               icon: Icons.remove,
-                              onTap: repeats > 0
+                              onTap: repeats > 1
                                   ? () => _update(
-                                      _draft.copyWith(repeats: repeats - 1),
-                                    )
+                                _draft.copyWith(repeats: repeats - 1),
+                              )
                                   : null,
                             ),
                             SizedBox(
                               width: 120,
                               child: Text(
-                                repeats == 0
-                                    ? 'No repeats'
-                                    : repeats == 1
+                                repeats == 1
                                     ? '1 repeat'
                                     : '$repeats repeats',
                                 style: text.bodyLarge!.copyWith(
@@ -376,8 +376,8 @@ class _AlarmScreenState extends State<AlarmScreen> {
                               icon: Icons.add,
                               onTap: repeats < 5
                                   ? () => _update(
-                                      _draft.copyWith(repeats: repeats + 1),
-                                    )
+                                _draft.copyWith(repeats: repeats + 1),
+                              )
                                   : null,
                             ),
                           ],

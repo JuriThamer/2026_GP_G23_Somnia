@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/user_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -14,6 +15,7 @@ class ProfileScreen extends StatelessWidget {
     final userService = UserService();
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(),
       body: Container(
         decoration: BoxDecoration(
           gradient: colors.gradient,

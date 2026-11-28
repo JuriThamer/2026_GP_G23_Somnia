@@ -36,9 +36,12 @@ class SessionReceiverService : WearableListenerService() {
     }
 
     override fun onMessageReceived(event: MessageEvent) {
-        if (event.path != "/somnia/epoch") return
-        runCatching { saveEpoch(event) }
-            .onFailure { Log.d("SomniaEpoch", "error ${it.message}") }
+        when (event.path) {
+            "/somnia/epoch" -> runCatching { saveEpoch(event) }
+                .onFailure { Log.d("SomniaEpoch", "error ${it.message}") }
+            "/somnia/trigger" -> runCatching { saveTrigger(event) }
+                .onFailure { Log.d("SomniaAlarm", "error ${it.message}") }
+        }
     }
 
     private fun save(sessionId: String, asset: Asset) {
@@ -56,6 +59,38 @@ class SessionReceiverService : WearableListenerService() {
         Wearable.getMessageClient(this).sendMessage(nodeId, "/somnia/ack", sessionId.toByteArray())
     }
 
+    private fun sessionDoc(uid: String, sessionId: String) =
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(uid)
+            .collection("sleepSessions")
+            .document(sessionId)
+
+    private fun saveTrigger(event: MessageEvent) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val parts = String(event.data).split('|')
+        val sessionId = parts.getOrNull(0) ?: return
+        val type = parts.getOrNull(1) ?: return
+        if (sessionId.isBlank() || sessionId.contains('/')) return
+        if (type != "smartTarget" && type != "regularTarget") return
+
+        val session = sessionDoc(uid, sessionId)
+        val snapshot = Tasks.await(session.get(), 10, TimeUnit.SECONDS)
+        if (!snapshot.exists()) return
+        if (snapshot.getString("alarmTrigger") != null) return
+        Tasks.await(
+            session.update(
+                mapOf(
+                    "alarmTrigger" to type,
+                    "alarmAt" to FieldValue.serverTimestamp(),
+                ),
+            ),
+            10,
+            TimeUnit.SECONDS,
+        )
+        Log.d("SomniaAlarm", "saved $sessionId trigger=$type")
+    }
+
     private fun saveEpoch(event: MessageEvent) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         Log.d("SomniaEpoch", "received bytes=${event.data.size} uid=$uid")
@@ -68,15 +103,12 @@ class SessionReceiverService : WearableListenerService() {
         val startedAt = header.getOrNull(2)?.toLongOrNull() ?: return
         val body = text.substringAfter('\n')
 
-        val session = FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(uid)
-            .collection("sleepSessions")
-            .document(sessionId)
+        val session = sessionDoc(uid, sessionId)
 
         val saved = runCatching {
             Tasks.await(
-                session.collection("wakeWindowEpochs")                     .document(index.toString().padStart(4, '0'))
+                session.collection("wakeWindowEpochs")
+                    .document(index.toString().padStart(4, '0'))
                     .set(
                         mapOf(
                             "index" to index,
@@ -111,13 +143,19 @@ class SessionReceiverService : WearableListenerService() {
         Log.d("SomniaEpoch", "session exists=${snapshot.exists()} wakeNow=${snapshot.getBoolean("wakeNow")} trigger=${snapshot.getString("alarmTrigger")}")
         if (snapshot.getBoolean("wakeNow") != true) return
         if (snapshot.getString("alarmTrigger") != null) return
+        runCatching {
+            Tasks.await(
+                session.update(
+                    mapOf(
+                        "alarmTrigger" to "smartWindow",
+                        "alarmAt" to FieldValue.serverTimestamp(),
+                    ),
+                ),
+                10,
+                TimeUnit.SECONDS,
+            )
+        }
         Wearable.getMessageClient(this).sendMessage(event.sourceNodeId, "/somnia/alarm", ByteArray(0))
-        session.update(
-            mapOf(
-                "alarmTrigger" to "smart",
-                "alarmAt" to FieldValue.serverTimestamp(),
-            ),
-        )
     }
 
     private fun section(body: String, name: String): String {

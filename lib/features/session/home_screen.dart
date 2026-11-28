@@ -15,6 +15,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../services/upload_service.dart';
 import '../alarm/alarm_screen.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -105,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     setState(() => _starting = true);
+    String? id;
     try {
       final user = await _userService.getUser();
       final settings = user?.alarm ?? const Alarm();
@@ -112,29 +114,37 @@ class _HomeScreenState extends State<HomeScreen> {
       final alarm = wakeAt == null
           ? null
           : SessionAlarm(
-              wakeAt: wakeAt,
-              window: settings.window,
-              smart: settings.smart,
-              repeats: settings.repeats,
-            );
-      final id = await _sessionService.startSession(
-        alarm: alarm,
-        toneId: ToneService.instance.playingToneId,
+        wakeAt: wakeAt,
+        window: settings.window,
+        smart: settings.smart,
+        repeats: settings.repeats,
       );
+      id = _sessionService.newSessionId();
       final sent = await _watchService.startRecording(id, alarm: alarm);
-      if (!mounted) return;
-      setState(() => _starting = false);
       if (!sent) {
+        _watchService.stopRecording(id);
+        if (!mounted) return;
+        setState(() => _starting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not reach the watch. Recording did not start.',
+              'Could not start the session on your watch. Keep it nearby with Bluetooth on and try again.',
             ),
           ),
         );
+        _checkWatch();
+        return;
       }
+      await _sessionService.startSession(
+        sessionId: id,
+        alarm: alarm,
+        toneId: ToneService.instance.playingToneId,
+      );
+      if (!mounted) return;
+      setState(() => _starting = false);
       await _open(AppRoutes.activeSession, arguments: id);
     } catch (_) {
+      if (id != null) _watchService.stopRecording(id);
       if (!mounted) return;
       setState(() => _starting = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -218,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(current: NavTab.home),
       body: Container(
         decoration: BoxDecoration(gradient: c.gradient),
         child: SafeArea(
@@ -226,8 +237,6 @@ class _HomeScreenState extends State<HomeScreen> {
             stream: _userStream,
             builder: (context, snapshot) {
               final user = snapshot.data;
-              final name = user?.name ?? '';
-              final initial = name.isEmpty ? '?' : name[0].toUpperCase();
               final paired = user?.watch != null;
               final connected = paired && _found != null;
               final hasActive = _active != null;
@@ -267,64 +276,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Material(
-                                color: c.surfaceAlt,
-                                shape: const StadiumBorder(),
-                                child: InkWell(
-                                  customBorder: const StadiumBorder(),
-                                  onTap: () => _open(AppRoutes.watch),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.watch_outlined,
-                                          size: 18,
-                                          color: c.text,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          connected
-                                              ? 'Connected'
-                                              : 'Not connected',
-                                          style: text.bodySmall!.copyWith(
-                                            color: connected
-                                                ? c.success
-                                                : c.warning,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Material(
-                                color: c.surfaceAlt,
-                                shape: const CircleBorder(),
-                                child: InkWell(
-                                  customBorder: const CircleBorder(),
-                                  onTap: () => _open(AppRoutes.settings),
-                                  child: SizedBox(
-                                    width: 48,
-                                    height: 48,
-                                    child: Center(
-                                      child: Text(
-                                        initial,
-                                        style: text.headlineSmall,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [SettingsAvatar()],
                           ),
                           const SizedBox(height: 20),
                           Container(
@@ -456,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         _uploading
@@ -468,8 +422,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         _uploading
                                             ? (_pending == 1
-                                                  ? '1 night'
-                                                  : '$_pending nights')
+                                            ? '1 night'
+                                            : '$_pending nights')
                                             : 'Tap to try again',
                                         style: text.bodyLarge,
                                       ),
@@ -523,26 +477,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Icon(Icons.chevron_right, color: c.text),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            _DockItem(
-                              icon: Icons.bar_chart_rounded,
-                              label: 'Dashboard',
-                              onTap: () => _open(AppRoutes.dashboard),
-                            ),
-                            _DockItem(
-                              icon: Icons.calendar_today_outlined,
-                              label: 'History',
-                              onTap: () => _open(AppRoutes.history),
-                            ),
-                            _DockItem(
-                              icon: Icons.graphic_eq,
-                              label: 'Tranquil Tones',
-                              onTap: () => _open(AppRoutes.sounds),
-                            ),
-                          ],
                         ),
                       ],
                     ),
@@ -598,41 +532,6 @@ class _Satellite extends StatelessWidget {
             ),
             Text(value, style: text.bodySmall),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DockItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _DockItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final text = Theme.of(context).textTheme;
-
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            children: [
-              Icon(icon, color: c.text),
-              const SizedBox(height: 4),
-              Text(label, style: text.bodySmall!.copyWith(color: c.text)),
-            ],
-          ),
         ),
       ),
     );

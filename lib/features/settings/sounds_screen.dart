@@ -6,6 +6,7 @@ import '../../models/tranquil_tone.dart';
 import '../../services/tone_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class SoundsScreen extends StatefulWidget {
   const SoundsScreen({super.key});
@@ -37,7 +38,7 @@ class _SoundsScreenState extends State<SoundsScreen> {
 
   bool get _selectedIsCurrent =>
       _selectedTone != null &&
-      _toneService.currentTone?.toneId == _selectedTone!.toneId;
+          _toneService.currentTone?.toneId == _selectedTone!.toneId;
 
   bool get _selectedIsPlaying => _selectedIsCurrent && _toneService.isPlaying;
 
@@ -72,7 +73,7 @@ class _SoundsScreenState extends State<SoundsScreen> {
         _tones = tones;
         _selectedId =
             _toneService.currentTone?.toneId ??
-            (tones.isEmpty ? null : tones.first.toneId);
+                (tones.isEmpty ? null : tones.first.toneId);
         _isLoading = false;
         _error = null;
       });
@@ -197,6 +198,7 @@ class _SoundsScreenState extends State<SoundsScreen> {
     final timerMinutes = _toneService.timerMinutes;
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(current: NavTab.tones),
       body: Container(
         decoration: BoxDecoration(gradient: colors.gradient),
         child: SafeArea(
@@ -219,7 +221,15 @@ class _SoundsScreenState extends State<SoundsScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Text('Tranquil Tones', style: text.headlineLarge),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text('Tranquil Tones', style: text.headlineLarge),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const SettingsAvatar(),
                 ],
               ),
               const SizedBox(height: 8),
@@ -257,134 +267,134 @@ class _SoundsScreenState extends State<SoundsScreen> {
                   ),
                 )
               else if (selectedTone == null)
-                const AppCard(
-                  padding: EdgeInsets.all(22),
-                  child: Center(
-                    child: Text('No tones are available right now.'),
-                  ),
-                )
-              else
-                AppCard(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 76,
-                        height: 76,
-                        decoration: BoxDecoration(
-                          color: colors.primary.withValues(alpha: 0.14),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _iconFor(selectedTone),
-                          size: 34,
-                          color: colors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        selectedTone.title,
-                        style: text.titleLarge,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${selectedTone.durationMinutes} min',
-                        style: text.bodySmall,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Text('Stop after', style: text.bodySmall),
-                          const Spacer(),
-                          DropdownButton<int>(
-                            value: timerMinutes,
-                            underline: const SizedBox.shrink(),
-                            borderRadius: BorderRadius.circular(14),
-                            items: ToneService.timerOptions
-                                .map(
-                                  (minutes) => DropdownMenuItem(
-                                    value: minutes,
-                                    child: Text(_durationLabel(minutes)),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: _isBusy
-                                ? null
-                                : (minutes) {
-                                    if (minutes != null) {
-                                      _toneService.setTimer(minutes);
-                                    }
-                                  },
+                  const AppCard(
+                    padding: EdgeInsets.all(22),
+                    child: Center(
+                      child: Text('No tones are available right now.'),
+                    ),
+                  )
+                else
+                  AppCard(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 76,
+                          height: 76,
+                          decoration: BoxDecoration(
+                            color: colors.primary.withValues(alpha: 0.14),
+                            shape: BoxShape.circle,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Text(
-                            _formatTime(_elapsedSeconds),
-                            style: text.labelSmall,
+                          child: Icon(
+                            _iconFor(selectedTone),
+                            size: 34,
+                            color: colors.primary,
                           ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: LinearProgressIndicator(
-                                  value: (_elapsedSeconds / (timerMinutes * 60))
-                                      .clamp(0.0, 1.0),
-                                  minHeight: 5,
-                                  backgroundColor: colors.line,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    colors.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          selectedTone.title,
+                          style: text.titleLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${selectedTone.durationMinutes} min',
+                          style: text.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Text('Stop after', style: text.bodySmall),
+                            const Spacer(),
+                            DropdownButton<int>(
+                              value: timerMinutes,
+                              underline: const SizedBox.shrink(),
+                              borderRadius: BorderRadius.circular(14),
+                              items: ToneService.timerOptions
+                                  .map(
+                                    (minutes) => DropdownMenuItem(
+                                  value: minutes,
+                                  child: Text(_durationLabel(minutes)),
+                                ),
+                              )
+                                  .toList(),
+                              onChanged: _isBusy
+                                  ? null
+                                  : (minutes) {
+                                if (minutes != null) {
+                                  _toneService.setTimer(minutes);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Text(
+                              _formatTime(_elapsedSeconds),
+                              style: text.labelSmall,
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: LinearProgressIndicator(
+                                    value: (_elapsedSeconds / (timerMinutes * 60))
+                                        .clamp(0.0, 1.0),
+                                    minHeight: 5,
+                                    backgroundColor: colors.line,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      colors.primary,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          Text(
-                            _durationLabel(timerMinutes),
-                            style: text.labelSmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      GestureDetector(
-                        onTap: _isBusy ? null : _togglePlay,
-                        child: Container(
-                          width: 58,
-                          height: 58,
-                          decoration: BoxDecoration(
-                            color: colors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: _isBusy
-                                ? SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: colors.onPrimary,
-                                    ),
-                                  )
-                                : Icon(
-                                    _selectedIsPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    size: 30,
-                                    color: colors.onPrimary,
-                                  ),
+                            Text(
+                              _durationLabel(timerMinutes),
+                              style: text.labelSmall,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        GestureDetector(
+                          onTap: _isBusy ? null : _togglePlay,
+                          child: Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: _isBusy
+                                  ? SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colors.onPrimary,
+                                ),
+                              )
+                                  : Icon(
+                                _selectedIsPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                size: 30,
+                                color: colors.onPrimary,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
               const SizedBox(height: 30),
               Text('ALL TONES', style: text.labelSmall),
               const SizedBox(height: 12),

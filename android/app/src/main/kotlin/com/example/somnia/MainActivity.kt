@@ -1,7 +1,10 @@
 package com.example.somnia
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.android.gms.wearable.CapabilityClient
+import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -36,9 +39,61 @@ class MainActivity : AudioServiceActivity() {
                             }
                         }
                     }
+                    "startAndWait" -> {
+                        val path = call.argument<String>("path") ?: ""
+                        val data = call.argument<String>("data") ?: ""
+                        val sessionId = call.argument<String>("sessionId") ?: ""
+                        sendAndWait(path, data, sessionId, "/somnia/started") { ok -> result.success(ok) }
+                    }
+                    "stopAndWait" -> {
+                        val path = call.argument<String>("path") ?: ""
+                        val data = call.argument<String>("data") ?: ""
+                        val sessionId = call.argument<String>("sessionId") ?: ""
+                        sendAndWait(path, data, sessionId, "/somnia/stopped") { ok -> result.success(ok) }
+                    }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private fun sendAndWait(
+        path: String,
+        data: String,
+        sessionId: String,
+        reply: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        val handler = Handler(Looper.getMainLooper())
+        val client = Wearable.getMessageClient(this)
+        var done = false
+        lateinit var listener: MessageClient.OnMessageReceivedListener
+
+        fun finish(ok: Boolean) {
+            handler.post {
+                if (!done) {
+                    done = true
+                    client.removeListener(listener)
+                    onResult(ok)
+                }
+            }
+        }
+
+        listener = MessageClient.OnMessageReceivedListener { event ->
+            if (event.path == reply && String(event.data) == sessionId) {
+                finish(true)
+            }
+        }
+
+        findWatch { node ->
+            if (node == null) {
+                finish(false)
+            } else {
+                client.addListener(listener)
+                handler.postDelayed({ finish(false) }, 15000)
+                client.sendMessage(node.id, path, data.toByteArray())
+                    .addOnFailureListener { finish(false) }
+            }
+        }
     }
 
     private fun findWatch(onResult: (Node?) -> Unit) {

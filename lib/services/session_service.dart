@@ -14,16 +14,21 @@ class SessionService {
         .collection('sleepSessions');
   }
 
-  Future<String> startSession({SessionAlarm? alarm, String? toneId}) async {
-    final doc = await _sessions.add({
+ 
+  String newSessionId() => _sessions.doc().id;
+
+  Future<void> startSession({
+    required String sessionId,
+    SessionAlarm? alarm,
+    String? toneId,
+  }) async {
+    await _sessions.doc(sessionId).set({
       'status': 'active',
       'startTime': FieldValue.serverTimestamp(),
       'alarm': alarm?.toMap(),
       'toneId': toneId,
     });
-    return doc.id;
   }
-
   Future<void> endSession(String sessionId) async {
     await _sessions.doc(sessionId).update({'endTime': Timestamp.now()});
   }

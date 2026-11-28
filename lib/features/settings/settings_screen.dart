@@ -6,6 +6,7 @@ import '../../theme/theme_controller.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../app_router.dart';
+import '../../widgets/somnia_nav_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -61,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.welcome,
-      (route) => false,
+          (route) => false,
     );
   }
 
@@ -80,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
+      bottomNavigationBar: const SomniaNavBar(),
       body: Container(
         decoration: BoxDecoration(gradient: colors.gradient),
         child: SafeArea(
@@ -110,8 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 8),
 
-              Text('Manage your Somnia preferences', style: text.bodySmall),
-
+              Text('Manage your account and appearance', style: text.bodySmall),
               const SizedBox(height: 28),
 
               Text('APPEARANCE', style: text.labelSmall),
@@ -183,44 +184,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text('Edit profile', style: text.bodyLarge),
-                    ),
-                    Icon(Icons.chevron_right, color: colors.muted),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              Text('PREFERENCES', style: text.labelSmall),
-
-              const SizedBox(height: 12),
-
-              AppCard(
-                onTap: () {
-                  Navigator.pushNamed(context, AppRoutes.watch);
-                },
-                child: Row(
-                  children: [
-                    Icon(Icons.watch_outlined, color: colors.text),
-                    const SizedBox(width: 16),
-                    Expanded(child: Text('Watch', style: text.bodyLarge)),
-                    Icon(Icons.chevron_right, color: colors.muted),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              AppCard(
-                onTap: () {
-                  Navigator.pushNamed(context, AppRoutes.sounds);
-                },
-                child: Row(
-                  children: [
-                    Icon(Icons.music_note_outlined, color: colors.text),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text('Tranquil Tones', style: text.bodyLarge),
                     ),
                     Icon(Icons.chevron_right, color: colors.muted),
                   ],

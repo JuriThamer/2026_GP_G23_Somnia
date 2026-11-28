@@ -10,15 +10,17 @@ object AlarmScheduler {
     private const val PREFS = "somnia_alarm"
     private const val KEY_REPEATS = "repeats"
     private const val KEY_WAKE = "wakeAt"
+    private const val KEY_SMART = "smart"
     private const val REQUEST_RING = 7001
     private const val REQUEST_SHOW = 7002
     private const val SNOOZE_MILLIS = 5 * 60 * 1000L
 
-    fun schedule(context: Context, wakeAt: Long, repeats: Int) {
+    fun schedule(context: Context, wakeAt: Long, repeats: Int, smart: Boolean) {
         if (wakeAt <= System.currentTimeMillis()) return
         prefs(context).edit()
             .putInt(KEY_REPEATS, repeats)
             .putLong(KEY_WAKE, wakeAt)
+            .putBoolean(KEY_SMART, smart)
             .apply()
         set(context, wakeAt)
     }
@@ -46,6 +48,10 @@ object AlarmScheduler {
         val manager = context.getSystemService(AlarmManager::class.java)
         manager.cancel(ringIntent(context))
         prefs(context).edit().clear().apply()
+    }
+
+    fun triggerType(context: Context): String {
+        return if (prefs(context).getBoolean(KEY_SMART, false)) "smartTarget" else "regularTarget"
     }
 
     private fun set(context: Context, at: Long) {
