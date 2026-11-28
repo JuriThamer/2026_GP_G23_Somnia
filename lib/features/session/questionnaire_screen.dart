@@ -107,20 +107,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             onTap: () => setState(() => _sleepInertia = entry.key),
           );
         }).toList();
-      case 3:
-        return List.generate(5, (index) {
-          final value = index + 1;
-          final label = value == 1
-              ? '1 · Not at all'
-              : value == 5
-              ? '5 · A lot'
-              : '$value';
-          return _Option(
-            label: label,
-            selected: _toneRelaxing == value,
-            onTap: () => setState(() => _toneRelaxing = value),
-          );
-        });
+
       case 4:
         return RestReview.toneReuseOptions.entries.map((entry) {
           return _Option(
